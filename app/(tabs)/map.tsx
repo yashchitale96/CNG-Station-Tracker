@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -10,12 +10,19 @@ import {
   Platform,
   StatusBar,
   Linking,
-  Alert
+  Alert,
+  Keyboard
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { stations } from '@/constants/stations';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { SearchFilters } from '@/components/SearchFilters';
+import { useFavorites } from '@/context/FavoritesContext';
+import { priceUpdateService } from '@/services/priceUpdates';
+import { Ionicons } from '@expo/vector-icons';
+import { useDebounce } from '@/hooks/useDebounce';
+import { FilterModal, FilterOptions } from '@/components/FilterModal';
 
 const INITIAL_REGION = {
   latitude: 18.5204,
@@ -29,6 +36,21 @@ export default function MapScreen() {
   const [errorMsg, setErrorMsg] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    priceRange: { min: 80, max: 90 },
+    onlyOpen: false,
+    onlyFavorites: false,
+    rating: 0,
+    sortBy: 'distance'
+  });
+  const [stationPrices, setStationPrices] = useState({});
+  const [priceUpdates, setPriceUpdates] = useState<{ [key: string]: { timestamp: number, change: number } }>({});
+  const [noResults, setNoResults] = useState(false);
+  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     (async () => {
@@ -53,6 +75,129 @@ export default function MapScreen() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    // Subscribe to price updates
+    const unsubscribe = priceUpdateService.subscribe((updates) => {
+      setStationPrices(prev => {
+        const newPrices = { ...prev };
+        updates.forEach(update => {
+          newPrices[update.stationId] = update.newPrice;
+        });
+        return newPrices;
+      });
+
+      setPriceUpdates(prev => {
+        const newUpdates = { ...prev };
+        updates.forEach(update => {
+          newUpdates[update.stationId] = {
+            timestamp: update.timestamp,
+            change: update.change
+          };
+        });
+        return newUpdates;
+      });
+    });
+
+    priceUpdateService.connect();
+
+    return () => {
+      unsubscribe();
+      priceUpdateService.disconnect();
+    };
+  }, []);
+
+  const isStationOpen = (station: typeof stations[0]) => {
+    if (!station.operatingHours) return true;
+    if (station.operatingHours === '24/7') return true;
+
+    const now = new Date();
+    const [start, end] = station.operatingHours.split(' - ');
+    const [startHour, startMinute] = start.split(':').map(Number);
+    const [endHour, endMinute] = end.split(':').map(Number);
+    
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    const currentTime = currentHour * 60 + currentMinute;
+    const startTime = startHour * 60 + startMinute;
+    const endTime = endHour * 60 + endMinute;
+    
+    if (endTime < startTime) {
+      // Handles cases like "22:00 - 06:00"
+      return currentTime >= startTime || currentTime <= endTime;
+    }
+    
+    return currentTime >= startTime && currentTime <= endTime;
+  };
+
+  const calculateDistance = (station: typeof stations[0]) => {
+    if (!location) return Infinity;
+    
+    const R = 6371; // Earth's radius in km
+    const lat1 = location.coords.latitude * Math.PI / 180;
+    const lat2 = station.latitude * Math.PI / 180;
+    const dLat = (station.latitude - location.coords.latitude) * Math.PI / 180;
+    const dLon = (station.longitude - location.coords.longitude) * Math.PI / 180;
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+             Math.cos(lat1) * Math.cos(lat2) *
+             Math.sin(dLon/2) * Math.sin(dLon/2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  const filteredStations = useMemo(() => {
+    const normalizedQuery = debouncedSearchQuery.toLowerCase().trim();
+    
+    let filtered = stations.filter(station => {
+      // Search filter
+      const matchesSearch = !normalizedQuery || 
+        station.name.toLowerCase().includes(normalizedQuery) ||
+        station.address.toLowerCase().includes(normalizedQuery);
+
+      // Price filter
+      const currentPrice = stationPrices[station.id] || station.price;
+      const matchesPrice = currentPrice >= filterOptions.priceRange.min && 
+                          currentPrice <= filterOptions.priceRange.max;
+
+      // Open/Closed filter
+      const matchesOpen = !filterOptions.onlyOpen || isStationOpen(station);
+
+      // Favorites filter
+      const matchesFavorites = !filterOptions.onlyFavorites || isFavorite(station.id);
+
+      // Rating filter
+      const matchesRating = station.rating >= filterOptions.rating;
+
+      return matchesSearch && matchesPrice && matchesOpen && matchesFavorites && matchesRating;
+    });
+
+    // Sort stations
+    filtered.sort((a, b) => {
+      switch (filterOptions.sortBy) {
+        case 'price':
+          return (stationPrices[a.id] || a.price) - (stationPrices[b.id] || b.price);
+        case 'rating':
+          return b.rating - a.rating;
+        case 'distance':
+          return calculateDistance(a) - calculateDistance(b);
+        default:
+          return 0;
+      }
+    });
+
+    setNoResults(filtered.length === 0 && (normalizedQuery !== '' || filterOptions.onlyFavorites || filterOptions.rating > 0));
+    return filtered;
+  }, [
+    stations,
+    debouncedSearchQuery,
+    filterOptions,
+    stationPrices,
+    location,
+    isFavorite
+  ]);
 
   const handleStationPress = (station) => {
     setSelectedStation(station);
@@ -107,6 +252,50 @@ export default function MapScreen() {
     }
   };
 
+  const toggleFavorite = (station) => {
+    if (isFavorite(station.id)) {
+      removeFavorite(station.id);
+    } else {
+      addFavorite(station.id);
+    }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (text === '') {
+      setNoResults(false);
+    }
+  };
+
+  const getPriceChangeIndicator = (stationId: string) => {
+    const update = priceUpdates[stationId];
+    if (!update) return null;
+
+    const isRecent = Date.now() - update.timestamp < 60000; // Show indicator for 1 minute
+    if (!isRecent) return null;
+
+    return (
+      <View style={[
+        styles.priceChangeIndicator,
+        { backgroundColor: update.change > 0 ? '#ff4444' : '#44bb44' }
+      ]}>
+        <Text style={styles.priceChangeText}>
+          {update.change > 0 ? '↑' : '↓'} ₹{Math.abs(update.change).toFixed(2)}
+        </Text>
+      </View>
+    );
+  };
+
+  const resetFilters = () => {
+    setFilterOptions({
+      priceRange: { min: 80, max: 90 },
+      onlyOpen: false,
+      onlyFavorites: false,
+      rating: 0,
+      sortBy: 'distance'
+    });
+  };
+
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -126,13 +315,36 @@ export default function MapScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      <SearchFilters
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onFilterPress={() => {
+          Keyboard.dismiss();
+          setShowFilters(true);
+        }}
+      />
+
+      <FilterModal
+        visible={showFilters}
+        onClose={() => setShowFilters(false)}
+        options={filterOptions}
+        onChange={setFilterOptions}
+        onReset={resetFilters}
+      />
+
+      {noResults && (
+        <View style={styles.noResultsContainer}>
+          <Text style={styles.noResultsText}>No stations found matching "{searchQuery}"</Text>
+        </View>
+      )}
+
       <MapView
         style={styles.map}
         initialRegion={mapRegion}
         showsUserLocation
         showsMyLocationButton
       >
-        {stations.map((station) => (
+        {filteredStations.map((station) => (
           <Marker
             key={station.id}
             coordinate={{
@@ -145,57 +357,47 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={selectedStation !== null}
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {selectedStation && (
-              <>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{selectedStation.name}</Text>
-                  <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                    <IconSymbol name="xmark" size={24} color="#666" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.modalBody}>
-                  <View style={styles.infoRow}>
-                    <IconSymbol name="indianrupeesign" size={20} color="#4CAF50" />
-                    <Text style={styles.infoText}>₹{selectedStation.price}/kg</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <IconSymbol name="star.fill" size={20} color="#FFD700" />
-                    <Text style={styles.infoText}>{selectedStation.rating} Rating</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <IconSymbol name="clock.fill" size={20} color="#666" />
-                    <Text style={styles.infoText}>{selectedStation.operatingHours}</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <IconSymbol name="mappin.circle.fill" size={20} color="#FF5252" />
-                    <Text style={styles.infoText}>{selectedStation.address}</Text>
-                  </View>
-
-                  <TouchableOpacity 
-                    style={styles.navigationButton}
-                    onPress={() => openMapsNavigation(selectedStation)}
-                  >
-                    <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
-                    <Text style={styles.navigationButtonText}>Navigate</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
+      {selectedStation && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={!!selectedStation}
+          onRequestClose={closeModal}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.stationName}>{selectedStation.name}</Text>
+                <TouchableOpacity
+                  onPress={() => toggleFavorite(selectedStation)}
+                  style={styles.favoriteButton}
+                >
+                  <Ionicons
+                    name={isFavorite(selectedStation.id) ? "heart" : "heart-outline"}
+                    size={24}
+                    color={isFavorite(selectedStation.id) ? "#FF0000" : "#000"}
+                  />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.stationAddress}>{selectedStation.address}</Text>
+              <View style={styles.priceContainer}>
+                <Text style={styles.stationPrice}>
+                  Price: ₹{(stationPrices[selectedStation.id] || selectedStation.price).toFixed(2)}/kg
+                </Text>
+                {getPriceChangeIndicator(selectedStation.id)}
+              </View>
+              <Text style={styles.operatingHours}>Hours: {selectedStation.operatingHours}</Text>
+              <TouchableOpacity 
+                style={styles.navigationButton}
+                onPress={() => openMapsNavigation(selectedStation)}
+              >
+                <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
+                <Text style={styles.navigationButtonText}>Navigate</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {errorMsg && (
         <View style={styles.errorContainer}>
@@ -221,7 +423,7 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -250,27 +452,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  modalTitle: {
+  stationName: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#000',
     flex: 1,
   },
-  closeButton: {
+  favoriteButton: {
     padding: 8,
   },
-  modalBody: {
-    gap: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoText: {
+  stationAddress: {
     fontSize: 16,
     color: '#333',
-    flex: 1,
+    marginBottom: 10,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stationPrice: {
+    fontSize: 16,
+    color: '#333',
+  },
+  priceChangeIndicator: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  priceChangeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  operatingHours: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 20,
   },
   navigationButton: {
     flexDirection: 'row',
@@ -302,6 +521,21 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   errorText: {
+    color: 'white',
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  noResultsContainer: {
+    position: 'absolute',
+    top: 70,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    padding: 10,
+    borderRadius: 8,
+    zIndex: 1,
+  },
+  noResultsText: {
     color: 'white',
     textAlign: 'center',
     fontSize: 14,
