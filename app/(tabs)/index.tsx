@@ -1,74 +1,157 @@
-import { Image, StyleSheet, Platform } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useAuth } from '@/context/AuthContext';
+import { Ionicons } from '@expo/vector-icons';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from 'react-native';
 
 export default function HomeScreen() {
+  const { user } = useAuth();
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+
+  if (!user) return null;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.header}>
+        <Text style={[styles.welcomeText, { color: colors.text }]}>
+          Welcome back, {user.displayName}!
+        </Text>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <View style={[styles.statCard, { backgroundColor: colors.tint }]}>
+          <Ionicons name="car" size={24} color="#fff" />
+          <Text style={styles.statNumber}>{user.statistics.totalRefills}</Text>
+          <Text style={styles.statLabel}>Total Refills</Text>
+        </View>
+
+        <View style={[styles.statCard, { backgroundColor: colors.tint }]}>
+          <Ionicons name="wallet" size={24} color="#fff" />
+          <Text style={styles.statNumber}>
+            ₹{user.statistics.totalSpent.toFixed(2)}
+          </Text>
+          <Text style={styles.statLabel}>Total Spent</Text>
+        </View>
+
+        <View style={[styles.statCard, { backgroundColor: colors.tint }]}>
+          <Ionicons name="trending-up" size={24} color="#fff" />
+          <Text style={styles.statNumber}>
+            ₹{user.statistics.averagePricePerRefill.toFixed(2)}
+          </Text>
+          <Text style={styles.statLabel}>Avg. per Refill</Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Recent Activity
+        </Text>
+        {Object.entries(user.statistics.visitedStations).length > 0 ? (
+          Object.entries(user.statistics.visitedStations)
+            .sort(([, a], [, b]) => b.lastVisit - a.lastVisit)
+            .slice(0, 5)
+            .map(([stationId, stats]) => (
+              <View
+                key={stationId}
+                style={[styles.activityCard, { backgroundColor: colors.background }]}
+              >
+                <View style={styles.activityInfo}>
+                  <Text style={[styles.stationName, { color: colors.text }]}>
+                    Station #{stationId}
+                  </Text>
+                  <Text style={[styles.activityDate, { color: colors.tabIconDefault }]}>
+                    {new Date(stats.lastVisit).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={[styles.activityAmount, { color: colors.tint }]}>
+                  ₹{stats.totalSpent.toFixed(2)}
+                </Text>
+              </View>
+            ))
+        ) : (
+          <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>
+            No recent activity
+          </Text>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  statNumber: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  statLabel: {
+    color: '#fff',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  activityCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  stationName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  activityDate: {
+    fontSize: 14,
+  },
+  activityAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 16,
   },
 });
