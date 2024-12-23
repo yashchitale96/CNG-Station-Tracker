@@ -48,37 +48,46 @@ export default function MapScreen() {
   const [stationPrices, setStationPrices] = useState({});
   const [priceUpdates, setPriceUpdates] = useState<{ [key: string]: { timestamp: number, change: number } }>({});
   const [noResults, setNoResults] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
-    (async () => {
+    let mounted = true;
+
+    const initializeApp = async () => {
       try {
         setIsLoading(true);
-        let { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        
         if (status !== 'granted') {
           setErrorMsg('Location permission is required to show nearby CNG stations.');
-          setIsLoading(false);
           return;
         }
 
-        let location = await Location.getCurrentPositionAsync({
+        const userLocation = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
-        setLocation(location);
+
+        if (mounted) {
+          setLocation(userLocation);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Error getting location:', error);
-        setErrorMsg('Failed to get your location. Please check your GPS settings.');
-      } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setErrorMsg('Failed to get your location. Please check your GPS settings.');
+          setIsLoading(false);
+        }
       }
-    })();
-  }, []);
+    };
 
-  useEffect(() => {
-    // Subscribe to price updates
+    initializeApp();
+    
     const unsubscribe = priceUpdateService.subscribe((updates) => {
+      if (!mounted) return;
+      
       setStationPrices(prev => {
         const newPrices = { ...prev };
         updates.forEach(update => {
@@ -102,6 +111,7 @@ export default function MapScreen() {
     priceUpdateService.connect();
 
     return () => {
+      mounted = false;
       unsubscribe();
       priceUpdateService.disconnect();
     };
@@ -124,7 +134,6 @@ export default function MapScreen() {
     const endTime = endHour * 60 + endMinute;
     
     if (endTime < startTime) {
-      // Handles cases like "22:00 - 06:00"
       return currentTime >= startTime || currentTime <= endTime;
     }
     
@@ -134,7 +143,7 @@ export default function MapScreen() {
   const calculateDistance = (station: typeof stations[0]) => {
     if (!location) return Infinity;
     
-    const R = 6371; // Earth's radius in km
+    const R = 6371; 
     const lat1 = location.coords.latitude * Math.PI / 180;
     const lat2 = station.latitude * Math.PI / 180;
     const dLat = (station.latitude - location.coords.latitude) * Math.PI / 180;
@@ -149,55 +158,55 @@ export default function MapScreen() {
   };
 
   const filteredStations = useMemo(() => {
-    const normalizedQuery = debouncedSearchQuery.toLowerCase().trim();
-    
-    let filtered = stations.filter(station => {
-      // Search filter
-      const matchesSearch = !normalizedQuery || 
-        station.name.toLowerCase().includes(normalizedQuery) ||
-        station.address.toLowerCase().includes(normalizedQuery);
+    const query = debouncedSearchQuery.toLowerCase().trim();
+    let filtered = stations;
 
-      // Price filter
-      const currentPrice = stationPrices[station.id] || station.price;
-      const matchesPrice = currentPrice >= filterOptions.priceRange.min && 
-                          currentPrice <= filterOptions.priceRange.max;
+    if (query) {
+      filtered = stations.filter(station => 
+        station.name.toLowerCase().includes(query) ||
+        station.address.toLowerCase().includes(query)
+      );
+    }
 
-      // Open/Closed filter
-      const matchesOpen = !filterOptions.onlyOpen || isStationOpen(station);
+    if (filterOptions.onlyOpen) {
+      filtered = filtered.filter(isStationOpen);
+    }
 
-      // Favorites filter
-      const matchesFavorites = !filterOptions.onlyFavorites || isFavorite(station.id);
+    if (filterOptions.onlyFavorites) {
+      filtered = filtered.filter(station => isFavorite(station.id));
+    }
 
-      // Rating filter
-      const matchesRating = station.rating >= filterOptions.rating;
+    if (filterOptions.rating > 0) {
+      filtered = filtered.filter(station => station.rating >= filterOptions.rating);
+    }
 
-      return matchesSearch && matchesPrice && matchesOpen && matchesFavorites && matchesRating;
+    const minPrice = filterOptions.priceRange.min;
+    const maxPrice = filterOptions.priceRange.max;
+    filtered = filtered.filter(station => {
+      const price = stationPrices[station.id] || station.price;
+      return price >= minPrice && price <= maxPrice;
     });
 
-    // Sort stations
-    filtered.sort((a, b) => {
-      switch (filterOptions.sortBy) {
-        case 'price':
-          return (stationPrices[a.id] || a.price) - (stationPrices[b.id] || b.price);
-        case 'rating':
-          return b.rating - a.rating;
-        case 'distance':
-          return calculateDistance(a) - calculateDistance(b);
-        default:
-          return 0;
-      }
-    });
+    if (location && filterOptions.sortBy === 'distance') {
+      filtered.sort((a, b) => calculateDistance(a) - calculateDistance(b));
+    } else if (filterOptions.sortBy === 'price') {
+      filtered.sort((a, b) => {
+        const priceA = stationPrices[a.id] || a.price;
+        const priceB = stationPrices[b.id] || b.price;
+        return priceA - priceB;
+      });
+    }
 
-    setNoResults(filtered.length === 0 && (normalizedQuery !== '' || filterOptions.onlyFavorites || filterOptions.rating > 0));
     return filtered;
-  }, [
-    stations,
-    debouncedSearchQuery,
-    filterOptions,
-    stationPrices,
-    location,
-    isFavorite
-  ]);
+  }, [debouncedSearchQuery, filterOptions, location, stationPrices, isFavorite]);
+
+  useEffect(() => {
+    setNoResults(filteredStations.length === 0);
+  }, [filteredStations]);
+
+  const handleMapReady = () => {
+    setMapReady(true);
+  };
 
   const handleStationPress = (station) => {
     setSelectedStation(station);
@@ -212,7 +221,6 @@ export default function MapScreen() {
     const destination = `${latitude},${longitude}`;
     const label = encodeURIComponent(station.name);
 
-    // Different URL schemes for iOS and Android
     const scheme = Platform.select({
       ios: `maps://app?saddr=Current%20Location&daddr=${destination}&dirflg=d`,
       android: `google.navigation:q=${destination}&mode=d&title=${label}`
@@ -224,13 +232,11 @@ export default function MapScreen() {
     });
 
     try {
-      // Check if the device can handle the direct maps scheme
       const canOpenMaps = await Linking.canOpenURL(scheme);
 
       if (canOpenMaps) {
         await Linking.openURL(scheme);
       } else {
-        // If can't open directly in maps app, try opening in browser
         const canOpenBrowser = await Linking.canOpenURL(mapsUrl);
         if (canOpenBrowser) {
           await Linking.openURL(mapsUrl);
@@ -271,7 +277,7 @@ export default function MapScreen() {
     const update = priceUpdates[stationId];
     if (!update) return null;
 
-    const isRecent = Date.now() - update.timestamp < 60000; // Show indicator for 1 minute
+    const isRecent = Date.now() - update.timestamp < 60000; 
     if (!isRecent) return null;
 
     return (
@@ -296,11 +302,11 @@ export default function MapScreen() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading && !mapReady) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Getting your location...</Text>
+        <Text style={styles.loadingText}>Loading map...</Text>
       </View>
     );
   }
@@ -343,6 +349,7 @@ export default function MapScreen() {
         initialRegion={mapRegion}
         showsUserLocation
         showsMyLocationButton
+        onMapReady={handleMapReady}
       >
         {filteredStations.map((station) => (
           <Marker
@@ -413,11 +420,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  centerContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
   map: {
     width: Dimensions.get('window').width,
@@ -505,11 +517,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
   },
   errorContainer: {
     position: 'absolute',

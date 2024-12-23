@@ -18,9 +18,15 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const { signIn, isLoading, error } = useAuth();
 
+  // Handle user sign-in
   const handleSignIn = () => {
-    signIn(email, password);
+    if (!email.trim() || !password.trim()) {
+      return;
+    }
+    signIn(email.trim(), password);
   };
+
+  const isValidInput = email.trim().length > 0 && password.trim().length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -34,27 +40,33 @@ export default function SignInScreen() {
 
         <View style={styles.form}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, error && styles.inputError]}
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            autoComplete="email"
+            returnKeyType="next"
+            placeholderTextColor="#999"
           />
           <TextInput
-            style={styles.input}
+            style={[styles.input, error && styles.inputError]}
             placeholder="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={isValidInput ? handleSignIn : undefined}
+            placeholderTextColor="#999"
           />
 
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, !isValidInput && styles.buttonDisabled]}
             onPress={handleSignIn}
-            disabled={isLoading}
+            disabled={isLoading || !isValidInput}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
@@ -92,6 +104,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     textAlign: 'center',
+    color: '#333',
   },
   subtitle: {
     fontSize: 16,
@@ -100,20 +113,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   form: {
-    gap: 16,
+    width: '100%',
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 16,
+    backgroundColor: '#f5f5f5',
     borderRadius: 8,
+    padding: 15,
+    marginBottom: 16,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  inputError: {
+    borderColor: '#ff6b6b',
+    backgroundColor: '#fff0f0',
   },
   button: {
     backgroundColor: '#007AFF',
-    padding: 16,
     borderRadius: 8,
+    padding: 15,
     alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
   },
   buttonText: {
     color: '#fff',

@@ -21,29 +21,49 @@ class PriceUpdateService {
   private updateInterval: number = 5 * 60 * 1000; // 5 minutes default
   private lastUpdate: number = Date.now();
   private isConnected: boolean = false;
+  private readonly MAX_HISTORY_LENGTH = 100; // Keep last 100 updates
+  private readonly MAX_PRICE_CHANGE = 0.5; // Maximum 50 paise change
+  private readonly UPDATE_BATCH_SIZE = 3; // Update 3 stations at a time
 
   constructor() {
-    // Initialize price history for all stations
-    import('@/constants/stations').then(({ stations }) => {
+    this.initializeStations();
+  }
+
+  private async initializeStations() {
+    try {
+      const { stations } = await import('@/constants/stations');
       stations.forEach(station => {
         this.priceHistory[station.id] = {
           currentPrice: station.price,
           history: []
         };
       });
-    });
-  }
-
-  setUpdateInterval(minutes: number) {
-    this.updateInterval = minutes * 60 * 1000;
-    if (this.isConnected) {
-      this.disconnect();
-      this.connect();
+    } catch (error) {
+      console.error('Error initializing price history:', error);
     }
   }
 
+  setUpdateInterval(minutes: number) {
+    if (minutes < 1) {
+      console.warn('Update interval cannot be less than 1 minute');
+      minutes = 1;
+    }
+    this.updateInterval = minutes * 60 * 1000;
+    if (this.isConnected) {
+      this.reconnect();
+    }
+  }
+
+  private reconnect() {
+    this.disconnect();
+    this.connect();
+  }
+
   connect() {
-    if (this.intervalId) return;
+    if (this.intervalId) {
+      console.warn('Price update service is already connected');
+      return;
+    }
 
     this.isConnected = true;
     this.intervalId = setInterval(() => {
@@ -63,20 +83,29 @@ class PriceUpdateService {
   }
 
   subscribe(callback: (updates: PriceUpdate[]) => void) {
+    if (typeof callback !== 'function') {
+      console.error('Invalid callback provided to price update service');
+      return () => {};
+    }
+
     this.listeners.push(callback);
     
-    // Immediately send current prices to new subscriber
-    const currentPrices = Object.entries(this.priceHistory).map(([stationId, data]) => ({
-      stationId,
-      newPrice: data.currentPrice,
-      timestamp: this.lastUpdate,
-      change: 0
-    }));
+    // Send current prices to new subscriber
+    const currentPrices = this.getCurrentPrices();
     callback(currentPrices);
 
     return () => {
       this.listeners = this.listeners.filter(listener => listener !== callback);
     };
+  }
+
+  private getCurrentPrices(): PriceUpdate[] {
+    return Object.entries(this.priceHistory).map(([stationId, data]) => ({
+      stationId,
+      newPrice: data.currentPrice,
+      timestamp: this.lastUpdate,
+      change: 0
+    }));
   }
 
   getPriceHistory(stationId: string) {
@@ -104,23 +133,27 @@ class PriceUpdateService {
 
       // Update price history
       updates.forEach(update => {
-        if (!this.priceHistory[update.stationId]) {
+        const station = this.priceHistory[update.stationId];
+        if (!station) {
           this.priceHistory[update.stationId] = {
             currentPrice: update.newPrice,
-            history: []
+            history: [update]
           };
+          return;
         }
 
-        const station = this.priceHistory[update.stationId];
-        station.history.push(update);
         station.currentPrice = update.newPrice;
+        station.history.unshift(update);
 
-        // Keep only last 24 hours of history
-        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-        station.history = station.history.filter(update => update.timestamp >= oneDayAgo);
+        // Limit history length
+        if (station.history.length > this.MAX_HISTORY_LENGTH) {
+          station.history = station.history.slice(0, this.MAX_HISTORY_LENGTH);
+        }
       });
 
-      this.notifyListeners(updates);
+      if (updates.length > 0) {
+        this.notifyListeners(updates);
+      }
     } catch (error) {
       console.error('Error generating price updates:', error);
     }
@@ -128,20 +161,16 @@ class PriceUpdateService {
 
   private generatePriceUpdates(): PriceUpdate[] {
     const updates: PriceUpdate[] = [];
-    const numberOfUpdates = Math.floor(Math.random() * 3) + 1; // 1-3 updates
     const timestamp = Date.now();
-
-    for (let i = 0; i < numberOfUpdates; i++) {
-      const stationId = String(Math.floor(Math.random() * 4) + 1);
+    const stationIds = Object.keys(this.priceHistory);
+    
+    // Randomly select stations to update
+    const selectedStations = this.getRandomStations(stationIds, this.UPDATE_BATCH_SIZE);
+    
+    selectedStations.forEach(stationId => {
       const currentPrice = this.getCurrentPrice(stationId) || 85;
-      
-      // More realistic price changes: smaller, market-driven fluctuations
-      const maxChange = 0.2; // Maximum 20 paise change
-      const marketTrend = Math.sin(timestamp / (24 * 60 * 60 * 1000)) * 0.1; // Daily price trend
-      const randomFactor = (Math.random() * 2 - 1) * maxChange;
-      const priceChange = marketTrend + randomFactor;
-      
-      const newPrice = Math.round((currentPrice + priceChange) * 100) / 100;
+      const priceChange = this.calculatePriceChange(timestamp);
+      const newPrice = Math.max(0, Math.round((currentPrice + priceChange) * 100) / 100);
       
       updates.push({
         stationId,
@@ -149,9 +178,25 @@ class PriceUpdateService {
         timestamp,
         change: priceChange
       });
-    }
+    });
 
     return updates;
+  }
+
+  private getRandomStations(stationIds: string[], count: number): string[] {
+    const shuffled = [...stationIds].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+  }
+
+  private calculatePriceChange(timestamp: number): number {
+    // Market trend based on time of day (24-hour cycle)
+    const hourOfDay = new Date(timestamp).getHours();
+    const marketTrend = Math.sin((hourOfDay / 24) * Math.PI * 2) * 0.1;
+    
+    // Random fluctuation
+    const randomChange = (Math.random() * 2 - 1) * this.MAX_PRICE_CHANGE;
+    
+    return marketTrend + randomChange;
   }
 }
 
