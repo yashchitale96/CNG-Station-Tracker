@@ -19,7 +19,7 @@ const Colors = {
     background: '#000',
     tint: tintColorDark,
     tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
+    tabIconSelected: tintColorDark, // demo
 
   },
 } as const;
