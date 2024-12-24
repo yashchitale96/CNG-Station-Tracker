@@ -20,6 +20,7 @@ const Colors = {
     tint: tintColorDark,
     tabIconDefault: '#ccc',
     tabIconSelected: tintColorDark,
+
   },
 } as const;
 
