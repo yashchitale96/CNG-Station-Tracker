@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { stations } from '@/constants/stations';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { SearchFilters } from '@/components/SearchFilters';
 import { useFavorites } from '@/context/FavoritesContext';
@@ -23,6 +22,20 @@ import { priceUpdateService } from '@/services/priceUpdates';
 import { Ionicons } from '@expo/vector-icons';
 import { useDebounce } from '@/hooks/useDebounce';
 import { FilterModal, FilterOptions } from '@/components/FilterModal';
+import { collection, query, where, getDocs, getFirestore } from 'firebase/firestore';
+
+interface Station {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+  operatingHours: string;
+  price: number;
+  rating: number;
+  status: 'pending' | 'verified' | 'rejected';
+  verificationCount: number;
+}
 
 const INITIAL_REGION = {
   latitude: 18.5204,
@@ -32,12 +45,13 @@ const INITIAL_REGION = {
 };
 
 export default function MapScreen() {
-  const [location, setLocation] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedStation, setSelectedStation] = useState(null);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [stations, setStations] = useState<Station[]>([]);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     priceRange: { min: 80, max: 90 },
     onlyOpen: false,
@@ -45,8 +59,8 @@ export default function MapScreen() {
     rating: 0,
     sortBy: 'distance'
   });
-  const [stationPrices, setStationPrices] = useState({});
-  const [priceUpdates, setPriceUpdates] = useState<{ [key: string]: { timestamp: number, change: number } }>({});
+  const [stationPrices, setStationPrices] = useState<Record<string, number>>({});
+  const [priceUpdates, setPriceUpdates] = useState<Record<string, { timestamp: number; change: number }>>({});
   const [noResults, setNoResults] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
@@ -55,6 +69,45 @@ export default function MapScreen() {
 
   useEffect(() => {
     let mounted = true;
+
+    const fetchStations = async () => {
+      try {
+        const db = getFirestore();
+        const stationsRef = collection(db, 'stations');
+        
+        // Query for verified stations
+        const verifiedStationsQuery = query(
+          stationsRef,
+          where('status', '==', 'verified')
+        );
+        
+        const querySnapshot = await getDocs(verifiedStationsQuery);
+        const fetchedStations: Station[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          fetchedStations.push({
+            id: doc.id,
+            name: data.name,
+            latitude: parseFloat(data.latitude),
+            longitude: parseFloat(data.longitude),
+            address: data.address,
+            operatingHours: data.operatingHours,
+            price: data.price || 85.50, // Default price if not set
+            rating: data.rating || 4.0,  // Default rating if not set
+            status: data.status,
+            verificationCount: data.verificationCount || 0
+          });
+        });
+        
+        if (mounted) {
+          setStations(fetchedStations);
+        }
+      } catch (error) {
+        console.error('Error fetching stations:', error);
+        Alert.alert('Error', 'Failed to load CNG stations');
+      }
+    };
 
     const initializeApp = async () => {
       try {
@@ -72,6 +125,7 @@ export default function MapScreen() {
 
         if (mounted) {
           setLocation(userLocation);
+          await fetchStations(); // Fetch stations after getting location
           setIsLoading(false);
         }
       } catch (error) {
@@ -117,7 +171,7 @@ export default function MapScreen() {
     };
   }, []);
 
-  const isStationOpen = (station: typeof stations[0]) => {
+  const isStationOpen = (station: Station) => {
     if (!station.operatingHours) return true;
     if (station.operatingHours === '24/7') return true;
 
@@ -140,7 +194,7 @@ export default function MapScreen() {
     return currentTime >= startTime && currentTime <= endTime;
   };
 
-  const calculateDistance = (station: typeof stations[0]) => {
+  const calculateDistance = (station: Station) => {
     if (!location) return Infinity;
     
     const R = 6371; 
@@ -198,7 +252,7 @@ export default function MapScreen() {
     }
 
     return filtered;
-  }, [debouncedSearchQuery, filterOptions, location, stationPrices, isFavorite]);
+  }, [debouncedSearchQuery, filterOptions, location, stationPrices, isFavorite, stations]);
 
   useEffect(() => {
     setNoResults(filteredStations.length === 0);
@@ -208,7 +262,7 @@ export default function MapScreen() {
     setMapReady(true);
   };
 
-  const handleStationPress = (station) => {
+  const handleStationPress = (station: Station) => {
     setSelectedStation(station);
   };
 
@@ -216,49 +270,18 @@ export default function MapScreen() {
     setSelectedStation(null);
   };
 
-  const openMapsNavigation = async (station) => {
-    const { latitude, longitude } = station;
-    const destination = `${latitude},${longitude}`;
-    const label = encodeURIComponent(station.name);
-
-    const scheme = Platform.select({
-      ios: `maps://app?saddr=Current%20Location&daddr=${destination}&dirflg=d`,
-      android: `google.navigation:q=${destination}&mode=d&title=${label}`
-    });
-
-    const mapsUrl = Platform.select({
-      ios: `http://maps.apple.com/?saddr=Current%20Location&daddr=${destination}&dirflg=d`,
-      android: `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`
-    });
-
-    try {
-      const canOpenMaps = await Linking.canOpenURL(scheme);
-
-      if (canOpenMaps) {
-        await Linking.openURL(scheme);
-      } else {
-        const canOpenBrowser = await Linking.canOpenURL(mapsUrl);
-        if (canOpenBrowser) {
-          await Linking.openURL(mapsUrl);
-        } else {
-          Alert.alert(
-            'Navigation Error',
-            'Could not open maps application. Please make sure you have a maps app installed.',
-            [{ text: 'OK' }]
-          );
-        }
-      }
-    } catch (error) {
-      console.error('Error opening maps:', error);
-      Alert.alert(
-        'Navigation Error',
-        'There was an error opening navigation. Please try again.',
-        [{ text: 'OK' }]
-      );
+  const handleOpenNavigation = (address: string | undefined) => {
+    if (!address) return;
+    
+    const encodedAddress = encodeURIComponent(address);
+    if (Platform.OS === 'ios') {
+      Linking.openURL(`maps://0,0?q=${encodedAddress}`);
+    } else {
+      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
     }
   };
 
-  const toggleFavorite = (station) => {
+  const toggleFavorite = (station: Station) => {
     if (isFavorite(station.id)) {
       removeFavorite(station.id);
     } else {
@@ -311,7 +334,7 @@ export default function MapScreen() {
     );
   }
 
-  const mapRegion = location ? {
+  const mapRegion = location?.coords ? {
     latitude: location.coords.latitude,
     longitude: location.coords.longitude,
     latitudeDelta: 0.1,
@@ -396,7 +419,7 @@ export default function MapScreen() {
               <Text style={styles.operatingHours}>Hours: {selectedStation.operatingHours}</Text>
               <TouchableOpacity 
                 style={styles.navigationButton}
-                onPress={() => openMapsNavigation(selectedStation)}
+                onPress={() => handleOpenNavigation(selectedStation.address)}
               >
                 <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
                 <Text style={styles.navigationButtonText}>Navigate</Text>

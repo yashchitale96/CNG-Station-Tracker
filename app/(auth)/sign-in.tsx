@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
@@ -18,8 +19,12 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const { signIn, isLoading, error } = useAuth();
 
-  const handleSignIn = () => {
-    signIn(email, password);
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    await signIn(email, password);
   };
 
   return (
@@ -29,30 +34,32 @@ export default function SignInScreen() {
     >
       <StatusBar style="dark" />
       <View style={styles.content}>
-        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.title}>Welcome Back!!</Text>
         <Text style={styles.subtitle}>Sign in to continue</Text>
 
         <View style={styles.form}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, error && styles.inputError]}
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            editable={!isLoading}
           />
           <TextInput
-            style={styles.input}
+            style={[styles.input, error && styles.inputError]}
             placeholder="Password"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            editable={!isLoading}
           />
 
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, isLoading && styles.buttonDisabled]}
             onPress={handleSignIn}
             disabled={isLoading}
           >
@@ -67,7 +74,7 @@ export default function SignInScreen() {
             <Text style={styles.footerText}>Don't have an account? </Text>
             <Link href="/sign-up" asChild>
               <TouchableOpacity>
-                <Text style={styles.footerLink}>Sign Up</Text>
+                <Text style={styles.link}>Sign Up</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -109,11 +116,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     fontSize: 16,
   },
+  inputError: {
+    borderColor: '#ff0000',
+  },
   button: {
     backgroundColor: '#007AFF',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: '#fff',
@@ -121,7 +134,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorText: {
-    color: '#ff3b30',
+    color: '#ff0000',
+    marginBottom: 10,
     textAlign: 'center',
   },
   footer: {
@@ -132,7 +146,7 @@ const styles = StyleSheet.create({
   footerText: {
     color: '#666',
   },
-  footerLink: {
+  link: {
     color: '#007AFF',
     fontWeight: '600',
   },

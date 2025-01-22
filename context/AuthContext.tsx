@@ -2,12 +2,21 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, AuthState, UserPreferences, UserStatistics } from '@/types/auth';
 import { router } from 'expo-router';
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { auth } from '../firebaseConfig';
 
 interface AuthContextType extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (updates: Partial<User>) => Promise<void>;
+  updateUserProfile: (updates: Partial<User>) => Promise<void>;
   updatePreferences: (updates: Partial<UserPreferences>) => Promise<void>;
   addVisitedStation: (stationId: string, amount: number) => Promise<void>;
 }
@@ -41,78 +50,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    loadUser();
-  }, []);
-
-  const loadUser = async () => {
-    try {
-      const userJson = await AsyncStorage.getItem('user');
-      if (userJson) {
-        setState({ user: JSON.parse(userJson), isLoading: false, error: null });
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Convert Firebase user to your app's user format
+        const appUser: User = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || '',
+          preferences: defaultPreferences,
+          statistics: defaultStatistics,
+          createdAt: firebaseUser.metadata?.creationTime 
+            ? new Date(firebaseUser.metadata.creationTime).getTime()
+            : Date.now(),
+        };
+        setState({ user: appUser, isLoading: false, error: null });
+        await AsyncStorage.setItem('user', JSON.stringify(appUser));
       } else {
         setState({ user: null, isLoading: false, error: null });
+        await AsyncStorage.removeItem('user');
       }
-    } catch (error) {
-      setState({ user: null, isLoading: false, error: 'Failed to load user data' });
-    }
-  };
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      setState({ ...state, isLoading: true, error: null });
-      
-      // In a real app, you would validate credentials with a backend server
-      // This is a mock implementation for demonstration
-      const mockUser: User = {
-        id: 'user_' + Math.random().toString(36).substr(2, 9),
-        email,
-        displayName: email.split('@')[0],
-        createdAt: Date.now(),
-        preferences: defaultPreferences,
-        statistics: defaultStatistics,
-      };
-
-      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
-      setState({ user: mockUser, isLoading: false, error: null });
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       router.replace('/(tabs)');
-    } catch (error) {
-      setState({ ...state, isLoading: false, error: 'Failed to sign in' });
+    } catch (error: any) {
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: error.message || 'Failed to sign in' 
+      }));
     }
   };
 
   const signUp = async (email: string, password: string, displayName: string) => {
     try {
-      setState({ ...state, isLoading: true, error: null });
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Mock implementation
-      const newUser: User = {
-        id: 'user_' + Math.random().toString(36).substr(2, 9),
-        email,
-        displayName,
-        createdAt: Date.now(),
-        preferences: defaultPreferences,
-        statistics: defaultStatistics,
-      };
-
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
-      setState({ user: newUser, isLoading: false, error: null });
+      // Update profile with display name
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName });
+      }
+      
       router.replace('/(tabs)');
-    } catch (error) {
-      setState({ ...state, isLoading: false, error: 'Failed to create account' });
+    } catch (error: any) {
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: error.message || 'Failed to sign up' 
+      }));
     }
   };
 
-  const signOut = async () => {
+  const handleSignOut = async () => {
     try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      await signOut(auth);
       await AsyncStorage.removeItem('user');
       setState({ user: null, isLoading: false, error: null });
       router.replace('/sign-in');
-    } catch (error) {
-      setState({ ...state, error: 'Failed to sign out' });
+    } catch (error: any) {
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: error.message || 'Failed to sign out' 
+      }));
     }
   };
 
-  const updateProfile = async (updates: Partial<User>) => {
+  const updateUserProfile = async (updates: Partial<User>) => {
     if (!state.user) return;
 
     try {
@@ -181,8 +193,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...state,
         signIn,
         signUp,
-        signOut,
-        updateProfile,
+        signOut: handleSignOut,
+        updateUserProfile,
         updatePreferences,
         addVisitedStation,
       }}
