@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Alert, useColorScheme, Image, Dimensions } from 'react-native';
-import { Text } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  useColorScheme,
+  Alert,
+  Linking,
+  Image,
+  Dimensions
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { 
   doc, 
@@ -250,12 +260,6 @@ export default function StationDetailsScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>{station.name}</Text>
         <View style={styles.statusContainer}>
           <Text style={[styles.status, { color: colors.text }]}>
@@ -378,17 +382,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
+    gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
   },
-  backButton: {
-    marginBottom: 16,
-  },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontWeight: '600',
+  },
+  backButton: {
+    marginBottom: 16,
   },
   statusContainer: {
     flexDirection: 'row',

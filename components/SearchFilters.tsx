@@ -1,14 +1,15 @@
 import React from 'react';
 import { 
-  StyleSheet, 
   View, 
   TextInput, 
   TouchableOpacity, 
+  StyleSheet, 
   Keyboard, 
   Platform,
   KeyboardAvoidingView 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Colors from '@/constants/Colors';
 
 interface SearchFiltersProps {
   searchQuery: string;
@@ -24,10 +25,11 @@ export function SearchFilters({ searchQuery, onSearchChange, onFilterPress }: Se
     >
       <View style={styles.container}>
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color={Colors.light.textSecondary} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search stations..."
+            placeholderTextColor={Colors.light.textSecondary}
             value={searchQuery}
             onChangeText={onSearchChange}
             returnKeyType="search"
@@ -36,14 +38,14 @@ export function SearchFilters({ searchQuery, onSearchChange, onFilterPress }: Se
             autoCorrect={false}
             onSubmitEditing={Keyboard.dismiss}
           />
+          <TouchableOpacity 
+            onPress={onFilterPress} 
+            style={styles.filterButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="options" size={20} style={styles.filterIcon} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          onPress={onFilterPress} 
-          style={styles.filterButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="filter" size={24} color="#007AFF" />
-        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -52,44 +54,50 @@ export function SearchFilters({ searchQuery, onSearchChange, onFilterPress }: Se
 const styles = StyleSheet.create({
   keyboardAvoid: {
     width: '100%',
-    zIndex: 1,
   },
   container: {
-    flexDirection: 'row',
-    padding: 10,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    margin: 10,
+    backgroundColor: Colors.light.background,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 3,
     elevation: 3,
   },
   searchContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 6,
-    paddingHorizontal: 10,
+    backgroundColor: Colors.light.backgroundSecondary,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 40,
+    height: '100%',
     fontSize: 16,
-    color: '#333',
-    paddingVertical: 8,
+    color: Colors.light.text,
+    paddingRight: 12,
   },
   filterButton: {
-    marginLeft: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 40,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 6,
+    position: 'absolute',
+    right: 16,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.light.tint,
+  },
+  filterIcon: {
+    color: 'white',
   },
 });

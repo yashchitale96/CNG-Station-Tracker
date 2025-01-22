@@ -1,6 +1,6 @@
-import React from 'react';
-import { StyleSheet, View, useColorScheme } from 'react-native';
-import { StationSubmissionForm } from '../../components/StationSubmissionForm';
+import React, { useState } from 'react';
+import { View, StyleSheet, useColorScheme } from 'react-native';
+import { StationSubmissionForm, StationFormData } from '@/components/StationSubmissionForm';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import Colors from '@/constants/Colors';
 import { Text } from 'react-native';
@@ -35,9 +35,11 @@ export default function SubmitStationScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>
-        Submit New CNG Station
-      </Text>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Submit New CNG Station
+        </Text>
+      </View>
       <Text style={[styles.subtitle, { color: colors.text }]}>
         Help the community by adding a new CNG station. Your submission will be verified by other users.
       </Text>
@@ -51,10 +53,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontWeight: '600',
   },
   subtitle: {
     fontSize: 16,

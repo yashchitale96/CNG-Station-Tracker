@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, getFirestore, orderBy, query } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
@@ -101,6 +101,8 @@ export default function StationsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      <View style={styles.header}>
+      </View>
       <FlatList
         data={stations}
         renderItem={renderStationItem}
@@ -120,6 +122,12 @@ export default function StationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
   },
   loadingContainer: {
     flex: 1,
