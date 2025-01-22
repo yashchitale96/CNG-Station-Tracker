@@ -26,7 +26,9 @@ interface FilterModalProps {
   options: FilterOptions;
   onChange: (newOptions: FilterOptions) => void;
   onReset: () => void;
+  hi
 }
+
 
 export function FilterModal({ visible, onClose, options, onChange, onReset }: FilterModalProps) {
   const PRICE_STEPS = Array.from({ length: 21 }, (_, i) => 80 + i * 0.5);
