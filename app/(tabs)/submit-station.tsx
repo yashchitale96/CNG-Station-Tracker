@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
-import { StationSubmissionForm, StationFormData } from '@/components/StationSubmissionForm';
+import { StationSubmissionForm} from '@/components/StationSubmissionForm';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import Colors from '@/constants/Colors';
 import { Text } from 'react-native';

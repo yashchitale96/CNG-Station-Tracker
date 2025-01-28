@@ -59,7 +59,7 @@ export default function ProfileScreen() {
           <ThemedText type="subtitle" style={styles.email}>{user.email}</ThemedText>
         </ThemedView>
 
-        {/* Statistics Section */}
+        {/* Statistics Section
         <ThemedView style={styles.section}>
           <ThemedText type="title" style={styles.sectionTitle}>Your Statistics</ThemedText>
           <ThemedView style={styles.statsGrid}>
@@ -80,7 +80,7 @@ export default function ProfileScreen() {
               <ThemedText type="subtitle" style={styles.statLabel}>Avg. per Refill</ThemedText>
             </ThemedView>
           </ThemedView>
-        </ThemedView>
+        </ThemedView> */}
 
         {/* Preferences Section */}
         <ThemedView style={styles.section}>

@@ -1,3 +1,5 @@
+// This is used for the stations option which shown on UI which shows the list of stations available for the verification
+
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';

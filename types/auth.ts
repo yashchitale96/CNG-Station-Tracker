@@ -1,3 +1,4 @@
+// This file shows the user name on the UI
 export interface User {
   id: string;
   email: string;
