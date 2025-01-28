@@ -18,7 +18,6 @@ interface AuthContextType extends AuthState {
   signOut: () => Promise<void>;
   updateUserProfile: (updates: Partial<User>) => Promise<void>;
   updatePreferences: (updates: Partial<UserPreferences>) => Promise<void>;
-  addVisitedStation: (stationId: string, amount: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,7 +35,6 @@ const defaultPreferences: UserPreferences = {
 };
 
 const defaultStatistics: UserStatistics = {
-  visitedStations: {},
   totalRefills: 0,
   totalSpent: 0,
   averagePricePerRefill: 0,
@@ -151,54 +149,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addVisitedStation = async (stationId: string, amount: number) => {
-    if (!state.user) return;
-
-    try {
-      const now = Date.now();
-      const visitedStations = { ...state.user.statistics.visitedStations };
-      const station = visitedStations[stationId] || { visitCount: 0, totalSpent: 0, lastVisit: 0 };
-
-      visitedStations[stationId] = {
-        lastVisit: now,
-        visitCount: station.visitCount + 1,
-        totalSpent: station.totalSpent + amount,
-      };
-
-      const totalRefills = state.user.statistics.totalRefills + 1;
-      const totalSpent = state.user.statistics.totalSpent + amount;
-
-      const updatedStatistics: UserStatistics = {
-        visitedStations,
-        totalRefills,
-        totalSpent,
-        averagePricePerRefill: totalSpent / totalRefills,
-      };
-
-      const updatedUser = {
-        ...state.user,
-        statistics: updatedStatistics,
-      };
-
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      setState({ ...state, user: updatedUser });
-    } catch (error) {
-      setState({ ...state, error: 'Failed to update visit statistics' });
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
-        ...state,
         signIn,
         signUp,
         signOut: handleSignOut,
         updateUserProfile,
         updatePreferences,
-        addVisitedStation,
-      }}
-    >
+        user: state.user,
+        isLoading: state.isLoading,
+        error: state.error,
+      }}>
       {children}
     </AuthContext.Provider>
   );

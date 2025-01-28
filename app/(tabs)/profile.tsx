@@ -114,34 +114,6 @@ export default function ProfileScreen() {
           </ThemedView>
         </ThemedView>
 
-        {/* Recently Visited Stations */}
-        <ThemedView style={styles.section}>
-          <ThemedText type="title" style={styles.sectionTitle}>Recently Visited Stations</ThemedText>
-          {Object.entries(user.statistics.visitedStations).length > 0 ? (
-            Object.entries(user.statistics.visitedStations)
-              .sort(([, a], [, b]) => b.lastVisit - a.lastVisit)
-              .slice(0, 5)
-              .map(([stationId, stats]) => (
-                <ThemedView key={stationId} style={styles.visitedStation}>
-                  <ThemedView>
-                    <ThemedText style={styles.stationName}>Station #{stationId}</ThemedText>
-                    <ThemedText type="subtitle" style={styles.visitDate}>
-                      Last visit: {formatDate(stats.lastVisit)}
-                    </ThemedText>
-                  </ThemedView>
-                  <ThemedView>
-                    <ThemedText style={styles.visitCount}>{stats.visitCount} visits</ThemedText>
-                    <ThemedText type="subtitle" style={styles.totalSpent}>
-                      {formatCurrency(stats.totalSpent)}
-                    </ThemedText>
-                  </ThemedView>
-                </ThemedView>
-              ))
-          ) : (
-            <ThemedText type="subtitle" style={styles.noDataText}>No stations visited yet</ThemedText>
-          )}
-        </ThemedView>
-
         {/* Sign Out Button */}
         <TouchableOpacity style={[styles.signOutButton, { borderTopColor: colors.border }]} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={24} color="#ff3b30" />
@@ -214,44 +186,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
-  visitedStation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  stationName: {
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  visitDate: {
-    fontSize: 12,
-  },
-  visitCount: {
-    textAlign: 'right',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  totalSpent: {
-    fontSize: 12,
-    textAlign: 'right',
-  },
-  noDataText: {
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
     borderTopWidth: 1,
-    marginTop: 20,
   },
   signOutText: {
-    color: '#ff3b30',
     marginLeft: 8,
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#ff3b30',
+    fontSize: 17,
   },
 });
