@@ -245,11 +245,11 @@ export default function StationDetailsScreen() {
 
   if (!station || !stationId) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.text, { color: colors.text }]}>Station not found</Text>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.text }]}>Station not found</Text>
         <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: colors.tint }]} 
+          onPress={() => router.replace('/(tabs)/stations')}
         >
           <Text style={styles.buttonText}>Go Back</Text>
         </TouchableOpacity>
@@ -394,7 +394,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   backButton: {
-    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    elevation: 2,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -476,7 +479,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   voteCount: {
     color: '#fff',
@@ -499,5 +502,17 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width * 0.8,
     height: 200,
     borderRadius: 8,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
   },
 });
