@@ -1,20 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Keyboard, 
-  Platform,
-  KeyboardAvoidingView,
+import React, { useRef } from 'react';
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
   Animated,
-  Pressable,
-  StatusBar,
-  SafeAreaView
+  Platform,
+  useColorScheme,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
-import { useColorScheme } from 'react-native';
 
 interface SearchFiltersProps {
   searchQuery: string;
@@ -31,8 +27,7 @@ export function SearchFilters({
 }: SearchFiltersProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  const [isFocused, setIsFocused] = useState(false);
-  const [scaleAnim] = useState(new Animated.Value(1));
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -49,142 +44,112 @@ export function SearchFilters({
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[styles.keyboardAvoid, style]}
-      >
-        <Animated.View 
-          style={[
-            styles.container,
-            { 
-              backgroundColor: colors.background,
-              transform: [{ scale: scaleAnim }]
-            }
-          ]}
-        >
-          <View style={[
-            styles.searchContainer,
-            { 
-              backgroundColor: colors.backgroundSecondary,
-              borderColor: isFocused ? colors.tint : 'transparent',
-            }
-          ]}>
-            <Ionicons 
-              name="search" 
-              size={20} 
-              color={isFocused ? colors.tint : colors.tabIconDefault} 
-              style={styles.searchIcon} 
-            />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search stations..."
-              placeholderTextColor={colors.tabIconDefault}
-              value={searchQuery}
-              onChangeText={onSearchChange}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              onSubmitEditing={Keyboard.dismiss}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => onSearchChange('')}
-                style={styles.clearButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons 
-                  name="close-circle" 
-                  size={18} 
-                  color={colors.tabIconDefault}
-                />
-              </TouchableOpacity>
-            )}
-            <Pressable 
-              onPress={onFilterPress}
-              onPressIn={handlePressIn}
-              onPressOut={handlePressOut}
-              style={({ pressed }) => [
-                styles.filterButton,
-                { backgroundColor: colors.tint },
-                pressed && styles.filterButtonPressed
-              ]}
+    <View style={[styles.container, style]}>
+      <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons 
+            name="search" 
+            size={20} 
+            color={colors.text} 
+            style={styles.searchIcon} 
+          />
+          <TextInput
+            style={[styles.input, { color: colors.text }]}
+            placeholder="Search stations..."
+            placeholderTextColor={colors.tabIconDefault}
+            value={searchQuery}
+            onChangeText={onSearchChange}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+            onSubmitEditing={Keyboard.dismiss}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity 
+              onPress={() => onSearchChange('')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="options" size={18} style={styles.filterIcon} />
-            </Pressable>
-          </View>
+              <Ionicons 
+                name="close-circle" 
+                size={20} 
+                color={colors.tabIconDefault}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <TouchableOpacity
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            onPress={onFilterPress}
+            style={[styles.filterButton, { backgroundColor: colors.tint }]}
+          >
+            <Ionicons name="options" size={20} color="#fff" />
+          </TouchableOpacity>
         </Animated.View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    width: '100%',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  keyboardAvoid: {
-    width: '100%',
-  },
   container: {
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'android' ? 8 : 12,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    width: '100%',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
     paddingHorizontal: 12,
-    height: Platform.OS === 'android' ? 44 : 48,
-    borderWidth: 2,
+    paddingVertical: 8,
+    borderRadius: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
   },
   searchIcon: {
     marginRight: 8,
   },
-  searchInput: {
+  input: {
     flex: 1,
-    height: '100%',
     fontSize: 16,
-    paddingRight: 12,
-    fontWeight: '400',
-    paddingVertical: Platform.OS === 'android' ? 8 : 0,
-  },
-  clearButton: {
-    padding: 4,
-    marginRight: 8,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
   },
   filterButton: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: Colors.light.tint,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  filterButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.95 }],
-  },
-  filterIcon: {
-    color: 'white',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
 });
