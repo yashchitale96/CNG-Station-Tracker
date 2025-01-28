@@ -352,14 +352,17 @@ export default function MapScreen() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" />
-        <SearchFilters
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          onFilterPress={() => {
-            Keyboard.dismiss();
-            setShowFilters(true);
-          }}
-        />
+        <View style={styles.searchContainer}>
+          <SearchFilters
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            onFilterPress={() => {
+              Keyboard.dismiss();
+              setShowFilters(true);
+            }}
+            style={styles.searchBar}
+          />
+        </View>
 
         <FilterModal
           visible={showFilters}
@@ -456,28 +459,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+  searchContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 8 : 0,
+    paddingBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  loadingText: {
-    marginTop: 10,
-    color: '#666',
-    fontSize: 16,
+  searchBar: {
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    backgroundColor: 'transparent',
   },
   map: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
+    flex: 1,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -582,5 +599,16 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 16,
   },
 });
