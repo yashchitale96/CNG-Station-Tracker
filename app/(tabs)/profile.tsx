@@ -37,14 +37,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `₹${amount.toFixed(2)}`;
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString();
-  };
-
   return (
     <ThemedView style={styles.container}>
       <ScrollView>
@@ -58,29 +50,6 @@ export default function ProfileScreen() {
           <ThemedText type="title" style={styles.displayName}>{user.displayName}</ThemedText>
           <ThemedText type="subtitle" style={styles.email}>{user.email}</ThemedText>
         </ThemedView>
-
-        {/* Statistics Section
-        <ThemedView style={styles.section}>
-          <ThemedText type="title" style={styles.sectionTitle}>Your Statistics</ThemedText>
-          <ThemedView style={styles.statsGrid}>
-            <ThemedView style={styles.statItem}>
-              <ThemedText style={styles.statValue}>{user.statistics.totalRefills}</ThemedText>
-              <ThemedText type="subtitle" style={styles.statLabel}>Total Refills</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.statItem}>
-              <ThemedText style={styles.statValue}>
-                {formatCurrency(user.statistics.totalSpent)}
-              </ThemedText>
-              <ThemedText type="subtitle" style={styles.statLabel}>Total Spent</ThemedText>
-            </ThemedView>
-            <ThemedView style={styles.statItem}>
-              <ThemedText style={styles.statValue}>
-                {formatCurrency(user.statistics.averagePricePerRefill)}
-              </ThemedText>
-              <ThemedText type="subtitle" style={styles.statLabel}>Avg. per Refill</ThemedText>
-            </ThemedView>
-          </ThemedView>
-        </ThemedView> */}
 
         {/* Preferences Section */}
         <ThemedView style={styles.section}>
@@ -163,22 +132,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
   },
   preferenceItem: {
     flexDirection: 'row',
