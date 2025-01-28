@@ -44,9 +44,6 @@ export default function SubmitStationScreen() {
           Submit New CNG Station
         </Text>
       </View>
-      <Text style={[styles.subtitle, { color: colors.text }]}>
-        Help the community by adding a new CNG station. Your submission will be verified by other users.
-      </Text>
       <StationSubmissionForm onSubmit={handleSubmit} />
     </View>
   );
@@ -66,10 +63,5 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 24,
-    opacity: 0.7,
   },
 });
