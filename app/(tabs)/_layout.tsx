@@ -41,6 +41,28 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="stations"
+        options={{
+          title: 'Stations',
+          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="station/[id]"
+        options={{
+          title: 'Details',
+          tabBarIcon: ({ color }) => <TabBarIcon name="info-circle" color={color} />,
+          href: null, // This prevents direct navigation to this tab
+        }}
+      />
+      <Tabs.Screen
+        name="submit-station"
+        options={{
+          title: 'Add',
+          tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           title: 'Explore',
