@@ -40,6 +40,23 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
         }}
       />
+
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: 'Map',
+          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
+        name="submit-station"
+        options={{
+          title: 'Add',
+          tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
+        }}
+      />
+
       <Tabs.Screen
         name="stations"
         options={{
@@ -55,13 +72,7 @@ export default function TabLayout() {
           href: null, // This prevents direct navigation to this tab
         }}
       />
-      <Tabs.Screen
-        name="submit-station"
-        options={{
-          title: 'Add',
-          tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
-        }}
-      />
+     
       <Tabs.Screen
         name="explore"
         options={{
@@ -69,13 +80,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="compass" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: 'Map',
-          tabBarIcon: ({ color }) => <TabBarIcon name="map" color={color} />,
-        }}
-      />
+      
       <Tabs.Screen
         name="profile"
         options={{
