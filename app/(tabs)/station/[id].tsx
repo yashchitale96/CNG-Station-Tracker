@@ -9,7 +9,10 @@ import {
   Alert,
   Linking,
   Image,
-  Dimensions
+  Dimensions,
+  Platform,
+  StatusBar,
+  SafeAreaView
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { 
@@ -237,147 +240,157 @@ export default function StationDetailsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.text, { color: colors.text }]}>Loading...</Text>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          <Text style={[styles.text, { color: colors.text }]}>Loading...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!station || !stationId) {
     return (
-      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.text }]}>Station not found</Text>
-        <TouchableOpacity 
-          style={[styles.backButton, { backgroundColor: colors.tint }]} 
-          onPress={() => router.replace('/(tabs)/stations')}
-        >
-          <Text style={styles.buttonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+          <Text style={[styles.errorText, { color: colors.text }]}>Station not found</Text>
+          <TouchableOpacity 
+            style={[styles.backButton, { backgroundColor: colors.tint }]} 
+            onPress={() => router.replace('/(tabs)/stations')}
+          >
+            <Text style={styles.buttonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>{station.name}</Text>
-        <View style={styles.statusContainer}>
-          <Text style={[styles.status, { color: colors.text }]}>
-            Status: {station.status.charAt(0).toUpperCase() + station.status.slice(1)}
-          </Text>
-          {station.status === 'verified' && (
-            <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-          )}
-        </View>
-      </View>
-
-      <View style={styles.infoSection}>
-        <Text style={[styles.label, { color: colors.text }]}>Address:</Text>
-        <Text style={[styles.text, { color: colors.text }]}>{station.address}</Text>
-
-        <Text style={[styles.label, { color: colors.text }]}>Operating Hours:</Text>
-        <Text style={[styles.text, { color: colors.text }]}>{station.operatingHours}</Text>
-
-        <Text style={[styles.label, { color: colors.text }]}>Contact:</Text>
-        <Text style={[styles.text, { color: colors.text }]}>{station.contactNumber}</Text>
-        {station.email && (
-          <Text style={[styles.text, { color: colors.text }]}>{station.email}</Text>
-        )}
-      </View>
-
-      <View style={styles.verificationSection}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Verification</Text>
-        
-        {station.photos && station.photos.length > 0 && (
-          <View style={styles.photosContainer}>
-            <Text style={[styles.label, { color: colors.text }]}>Station Photos:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {station.photos.map((photo, index) => (
-                <View key={index} style={styles.photoWrapper}>
-                  <Image
-                    source={{ uri: photo }}
-                    style={styles.stationPhoto}
-                    resizeMode="cover"
-                  />
-                </View>
-              ))}
-            </ScrollView>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>{station.name}</Text>
+          <View style={styles.statusContainer}>
+            <Text style={[styles.status, { color: colors.text }]}>
+              Status: {station.status.charAt(0).toUpperCase() + station.status.slice(1)}
+            </Text>
+            {station.status === 'verified' && (
+              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+            )}
           </View>
-        )}
+        </View>
 
-        <View style={styles.verificationInfo}>
-          <Text style={[styles.text, { color: colors.text }]}>
-            {station.verificationCount} users have verified this station
-          </Text>
-          {station.status === 'verified' && (
-            <>
-              <View style={styles.reliabilityScore}>
-                <Text style={[styles.label, { color: colors.text }]}>Reliability Score:</Text>
-                <Text style={[styles.scoreText, { color: colors.text }]}>
-                  {station.reliability || 0}%
-                </Text>
-              </View>
-              <Text style={[styles.verifiedDate, { color: colors.text }]}>
-                Verified on: {new Date(station.verifiedAt || '').toLocaleDateString()}
-              </Text>
-            </>
+        <View style={styles.infoSection}>
+          <Text style={[styles.label, { color: colors.text }]}>Address:</Text>
+          <Text style={[styles.text, { color: colors.text }]}>{station.address}</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Operating Hours:</Text>
+          <Text style={[styles.text, { color: colors.text }]}>{station.operatingHours}</Text>
+
+          <Text style={[styles.label, { color: colors.text }]}>Contact:</Text>
+          <Text style={[styles.text, { color: colors.text }]}>{station.contactNumber}</Text>
+          {station.email && (
+            <Text style={[styles.text, { color: colors.text }]}>{station.email}</Text>
           )}
         </View>
-        {!hasVerified && user?.id && (
-          <TouchableOpacity
-            style={styles.verifyButton}
-            onPress={verifyStation}
-          >
-            <Text style={styles.buttonText}>Verify Station</Text>
-          </TouchableOpacity>
-        )}
-        {!user?.id && (
-          <Text style={[styles.text, { color: colors.text, fontStyle: 'italic' }]}>
-            Login to verify this station
-          </Text>
-        )}
-      </View>
 
-      <View style={styles.votingSection}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Community Rating</Text>
-        <View style={styles.voteContainer}>
-          <TouchableOpacity
-            style={[styles.voteButton, hasVoted === 'up' && styles.votedButton]}
-            onPress={() => handleVote('up')}
-            disabled={!user?.id}
-          >
-            <Ionicons
-              name={hasVoted === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
-              size={24}
-              color="#fff"
-            />
-            <Text style={styles.voteCount}>{station.upvotes || 0}</Text>
-          </TouchableOpacity>
+        <View style={styles.verificationSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Verification</Text>
+          
+          {station.photos && station.photos.length > 0 && (
+            <View style={styles.photosContainer}>
+              <Text style={[styles.label, { color: colors.text }]}>Station Photos:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {station.photos.map((photo, index) => (
+                  <View key={index} style={styles.photoWrapper}>
+                    <Image
+                      source={{ uri: photo }}
+                      style={styles.stationPhoto}
+                      resizeMode="cover"
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
-          <TouchableOpacity
-            style={[styles.voteButton, hasVoted === 'down' && styles.votedButton]}
-            onPress={() => handleVote('down')}
-            disabled={!user?.id}
-          >
-            <Ionicons
-              name={hasVoted === 'down' ? 'thumbs-down' : 'thumbs-down-outline'}
-              size={24}
-              color="#fff"
-            />
-            <Text style={styles.voteCount}>{station.downvotes || 0}</Text>
-          </TouchableOpacity>
+          <View style={styles.verificationInfo}>
+            <Text style={[styles.text, { color: colors.text }]}>
+              {station.verificationCount} users have verified this station
+            </Text>
+            {station.status === 'verified' && (
+              <>
+                <View style={styles.reliabilityScore}>
+                  <Text style={[styles.label, { color: colors.text }]}>Reliability Score:</Text>
+                  <Text style={[styles.scoreText, { color: colors.text }]}>
+                    {station.reliability || 0}%
+                  </Text>
+                </View>
+                <Text style={[styles.verifiedDate, { color: colors.text }]}>
+                  Verified on: {new Date(station.verifiedAt || '').toLocaleDateString()}
+                </Text>
+              </>
+            )}
+          </View>
+          {!hasVerified && user?.id && (
+            <TouchableOpacity
+              style={styles.verifyButton}
+              onPress={verifyStation}
+            >
+              <Text style={styles.buttonText}>Verify Station</Text>
+            </TouchableOpacity>
+          )}
+          {!user?.id && (
+            <Text style={[styles.text, { color: colors.text, fontStyle: 'italic' }]}>
+              Login to verify this station
+            </Text>
+          )}
         </View>
-        {!user?.id && (
-          <Text style={[styles.text, { color: colors.text, fontStyle: 'italic', textAlign: 'center', marginTop: 8 }]}>
-            Login to vote on this station
-          </Text>
-        )}
-      </View>
-    </ScrollView>
+
+        <View style={styles.votingSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Community Rating</Text>
+          <View style={styles.voteContainer}>
+            <TouchableOpacity
+              style={[styles.voteButton, hasVoted === 'up' && styles.votedButton]}
+              onPress={() => handleVote('up')}
+              disabled={!user?.id}
+            >
+              <Ionicons
+                name={hasVoted === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
+                size={24}
+                color="#fff"
+              />
+              <Text style={styles.voteCount}>{station.upvotes || 0}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.voteButton, hasVoted === 'down' && styles.votedButton]}
+              onPress={() => handleVote('down')}
+              disabled={!user?.id}
+            >
+              <Ionicons
+                name={hasVoted === 'down' ? 'thumbs-down' : 'thumbs-down-outline'}
+                size={24}
+                color="#fff"
+              />
+              <Text style={styles.voteCount}>{station.downvotes || 0}</Text>
+            </TouchableOpacity>
+          </View>
+          {!user?.id && (
+            <Text style={[styles.text, { color: colors.text, fontStyle: 'italic', textAlign: 'center', marginTop: 8 }]}>
+              Login to vote on this station
+            </Text>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
   },

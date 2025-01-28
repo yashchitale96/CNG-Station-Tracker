@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { View, StyleSheet, useColorScheme, Platform, StatusBar, SafeAreaView } from 'react-native';
 import { StationSubmissionForm} from '@/components/StationSubmissionForm';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import Colors from '@/constants/Colors';
@@ -38,18 +38,24 @@ export default function SubmitStationScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          Submit New CNG Station
-        </Text>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Submit New CNG Station
+          </Text>
+        </View>
+        <StationSubmissionForm onSubmit={handleSubmit} />
       </View>
-      <StationSubmissionForm onSubmit={handleSubmit} />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
     padding: 16,
@@ -57,7 +63,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 16,
     gap: 12,
   },
   title: {

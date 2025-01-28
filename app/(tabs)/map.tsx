@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  SafeAreaView,
   Linking,
   Alert,
   Keyboard
@@ -23,6 +24,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDebounce } from '@/hooks/useDebounce';
 import { FilterModal, FilterOptions } from '@/components/FilterModal';
 import { collection, query, where, getDocs, getFirestore } from 'firebase/firestore';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from 'react-native';
 
 interface Station {
   id: string;
@@ -45,6 +48,8 @@ const INITIAL_REGION = {
 };
 
 export default function MapScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -327,10 +332,12 @@ export default function MapScreen() {
 
   if (isLoading && !mapReady) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading map...</Text>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+          <Text style={styles.loadingText}>Loading map...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -342,103 +349,109 @@ export default function MapScreen() {
   } : INITIAL_REGION;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <SearchFilters
-        searchQuery={searchQuery}
-        onSearchChange={handleSearchChange}
-        onFilterPress={() => {
-          Keyboard.dismiss();
-          setShowFilters(true);
-        }}
-      />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <SearchFilters
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          onFilterPress={() => {
+            Keyboard.dismiss();
+            setShowFilters(true);
+          }}
+        />
 
-      <FilterModal
-        visible={showFilters}
-        onClose={() => setShowFilters(false)}
-        options={filterOptions}
-        onChange={setFilterOptions}
-        onReset={resetFilters}
-      />
+        <FilterModal
+          visible={showFilters}
+          onClose={() => setShowFilters(false)}
+          options={filterOptions}
+          onChange={setFilterOptions}
+          onReset={resetFilters}
+        />
 
-      {noResults && (
-        <View style={styles.noResultsContainer}>
-          <Text style={styles.noResultsText}>No stations found matching "{searchQuery}"</Text>
-        </View>
-      )}
+        {noResults && (
+          <View style={styles.noResultsContainer}>
+            <Text style={styles.noResultsText}>No stations found matching "{searchQuery}"</Text>
+          </View>
+        )}
 
-      <MapView
-        style={styles.map}
-        initialRegion={mapRegion}
-        showsUserLocation
-        showsMyLocationButton
-        onMapReady={handleMapReady}
-      >
-        {filteredStations.map((station) => (
-          <Marker
-            key={station.id}
-            coordinate={{
-              latitude: station.latitude,
-              longitude: station.longitude,
-            }}
-            onPress={() => handleStationPress(station)}
-            pinColor="#4CAF50"
-          />
-        ))}
-      </MapView>
-
-      {selectedStation && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={!!selectedStation}
-          onRequestClose={closeModal}
+        <MapView
+          style={styles.map}
+          initialRegion={mapRegion}
+          showsUserLocation
+          showsMyLocationButton
+          onMapReady={handleMapReady}
         >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.stationName}>{selectedStation.name}</Text>
-                <TouchableOpacity
-                  onPress={() => toggleFavorite(selectedStation)}
-                  style={styles.favoriteButton}
+          {filteredStations.map((station) => (
+            <Marker
+              key={station.id}
+              coordinate={{
+                latitude: station.latitude,
+                longitude: station.longitude,
+              }}
+              onPress={() => handleStationPress(station)}
+              pinColor="#4CAF50"
+            />
+          ))}
+        </MapView>
+
+        {selectedStation && (
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={!!selectedStation}
+            onRequestClose={closeModal}
+          >
+            <View style={styles.modalContainer}>
+              <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.stationName, { color: colors.text }]}>{selectedStation.name}</Text>
+                  <TouchableOpacity
+                    onPress={() => toggleFavorite(selectedStation)}
+                    style={styles.favoriteButton}
+                  >
+                    <Ionicons
+                      name={isFavorite(selectedStation.id) ? "heart" : "heart-outline"}
+                      size={24}
+                      color={isFavorite(selectedStation.id) ? "#FF0000" : "#000"}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.stationAddress, { color: colors.text }]}>{selectedStation.address}</Text>
+                <View style={styles.priceContainer}>
+                  <Text style={[styles.stationPrice, { color: colors.text }]}>
+                    Price: ₹{(stationPrices[selectedStation.id] || selectedStation.price).toFixed(2)}/kg
+                  </Text>
+                  {getPriceChangeIndicator(selectedStation.id)}
+                </View>
+                <Text style={[styles.operatingHours, { color: colors.text }]}>Hours: {selectedStation.operatingHours}</Text>
+                <TouchableOpacity 
+                  style={styles.navigationButton}
+                  onPress={() => handleOpenNavigation(selectedStation.address)}
                 >
-                  <Ionicons
-                    name={isFavorite(selectedStation.id) ? "heart" : "heart-outline"}
-                    size={24}
-                    color={isFavorite(selectedStation.id) ? "#FF0000" : "#000"}
-                  />
+                  <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
+                  <Text style={styles.navigationButtonText}>Navigate</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.stationAddress}>{selectedStation.address}</Text>
-              <View style={styles.priceContainer}>
-                <Text style={styles.stationPrice}>
-                  Price: ₹{(stationPrices[selectedStation.id] || selectedStation.price).toFixed(2)}/kg
-                </Text>
-                {getPriceChangeIndicator(selectedStation.id)}
-              </View>
-              <Text style={styles.operatingHours}>Hours: {selectedStation.operatingHours}</Text>
-              <TouchableOpacity 
-                style={styles.navigationButton}
-                onPress={() => handleOpenNavigation(selectedStation.address)}
-              >
-                <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
-                <Text style={styles.navigationButtonText}>Navigate</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
-      )}
+          </Modal>
+        )}
 
-      {errorMsg && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{errorMsg}</Text>
-        </View>
-      )}
-    </View>
+        {errorMsg && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

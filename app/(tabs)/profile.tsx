@@ -1,11 +1,14 @@
 import React from 'react';
 import {
   StyleSheet,
+  SafeAreaView,
   ScrollView,
   Switch,
   TouchableOpacity,
   useColorScheme,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,8 +41,11 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         {/* Profile Header */}
         <ThemedView style={styles.header}>
           <ThemedView style={styles.avatarPlaceholder}>
@@ -89,13 +95,20 @@ export default function ProfileScreen() {
           <ThemedText style={styles.signOutText}>Sign Out</ThemedText>
         </TouchableOpacity>
       </ScrollView>
-    </ThemedView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
+  },
+  content: {
+    padding: 16,
   },
   header: {
     alignItems: 'center',
