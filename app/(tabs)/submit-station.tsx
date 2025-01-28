@@ -4,10 +4,12 @@ import { StationSubmissionForm} from '@/components/StationSubmissionForm';
 import { addDoc, collection, getFirestore } from 'firebase/firestore';
 import Colors from '@/constants/Colors';
 import { Text } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function SubmitStationScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
+  const router = useRouter();
 
   const handleSubmit = async (formData: any) => {
     try {
@@ -27,6 +29,8 @@ export default function SubmitStationScreen() {
 
       await addDoc(stationsRef, stationData);
       alert('Station submitted successfully! It will be verified by the community.');
+      // Navigate to stations screen
+      router.replace('/stations');
     } catch (error) {
       console.error('Error submitting station:', error);
       alert('Error submitting station. Please try again.');

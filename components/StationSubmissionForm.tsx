@@ -15,21 +15,22 @@ interface StationFormData {
   photos: string[];
 }
 
+const defaultFormData: StationFormData = {
+  name: '',
+  address: '',
+  latitude: '',
+  longitude: '',
+  operatingHours: '',
+  contactNumber: '',
+  email: '',
+  photos: [],
+};
+
 export const StationSubmissionForm = ({ onSubmit }: { onSubmit: (data: StationFormData) => void }) => {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   
-  const [formData, setFormData] = useState<StationFormData>({
-    name: '',
-    address: '',
-    latitude: '',
-    longitude: '',
-    operatingHours: '',
-    contactNumber: '',
-    email: '',
-    photos: [],
-  });
-
+  const [formData, setFormData] = useState<StationFormData>(defaultFormData);
   const [errors, setErrors] = useState<Partial<Record<keyof StationFormData, string>>>({});
 
   const validateForm = () => {
@@ -61,6 +62,9 @@ export const StationSubmissionForm = ({ onSubmit }: { onSubmit: (data: StationFo
   const handleSubmit = () => {
     if (validateForm()) {
       onSubmit(formData);
+      // Reset form after successful submission
+      setFormData(defaultFormData);
+      setErrors({});
     }
   };
 
