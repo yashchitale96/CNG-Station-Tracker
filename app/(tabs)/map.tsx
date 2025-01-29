@@ -117,10 +117,51 @@ export default function MapScreen() {
     const initializeApp = async () => {
       try {
         setIsLoading(true);
+        
+        // First check if location services are enabled
+        const locationEnabled = await Location.hasServicesEnabledAsync();
+        
+        if (!locationEnabled) {
+          Alert.alert(
+            'Location Services Disabled',
+            'Please enable location services in your device settings to find nearby CNG stations.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Open Settings', 
+                onPress: () => {
+                  Platform.OS === 'ios' 
+                    ? Linking.openURL('app-settings:')
+                    : Linking.openSettings();
+                }
+              },
+            ]
+          );
+          setErrorMsg('Location services are disabled. Please enable them in your device settings.');
+          setIsLoading(false);
+          return;
+        }
+
         const { status } = await Location.requestForegroundPermissionsAsync();
         
         if (status !== 'granted') {
+          Alert.alert(
+            'Location Permission Required',
+            'This app needs location permission to show nearby CNG stations. Please grant permission in your device settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Open Settings', 
+                onPress: () => {
+                  Platform.OS === 'ios' 
+                    ? Linking.openURL('app-settings:')
+                    : Linking.openSettings();
+                }
+              },
+            ]
+          );
           setErrorMsg('Location permission is required to show nearby CNG stations.');
+          setIsLoading(false);
           return;
         }
 
@@ -130,12 +171,17 @@ export default function MapScreen() {
 
         if (mounted) {
           setLocation(userLocation);
-          await fetchStations(); // Fetch stations after getting location
+          await fetchStations();
           setIsLoading(false);
         }
       } catch (error) {
         console.error('Error getting location:', error);
         if (mounted) {
+          Alert.alert(
+            'Location Error',
+            'Unable to get your location. Please ensure location services are enabled and you have a stable internet connection.',
+            [{ text: 'OK' }]
+          );
           setErrorMsg('Failed to get your location. Please check your GPS settings.');
           setIsLoading(false);
         }
