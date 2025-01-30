@@ -13,7 +13,7 @@ import {
   Alert,
   Keyboard
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, UrlTile, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { SearchFilters } from '@/components/SearchFilters';
@@ -63,6 +63,9 @@ export default function MapScreen() {
   const [priceUpdates, setPriceUpdates] = useState<Record<string, { timestamp: number; change: number }>>({});
   const [noResults, setNoResults] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [routeCoordinates, setRouteCoordinates] = useState<Array<{latitude: number, longitude: number}>>([]);
+  const [distance, setDistance] = useState<string>('');
+  const [duration, setDuration] = useState<string>('');
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -270,15 +273,48 @@ export default function MapScreen() {
     setSelectedStation(null);
   };
 
-  const handleOpenNavigation = (address: string | undefined) => {
-    if (!address) return;
-    
-    const encodedAddress = encodeURIComponent(address);
-    if (Platform.OS === 'ios') {
-      Linking.openURL(`maps://0,0?q=${encodedAddress}`);
-    } else {
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
+  const getDirections = async (station: Station) => {
+    if (!location) {
+      Alert.alert('Error', 'Unable to get your current location');
+      return;
     }
+
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${location.coords.longitude},${location.coords.latitude};${station.longitude},${station.latitude}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+      
+      if (data.routes && data.routes[0]) {
+        // Convert coordinates to the format required by react-native-maps
+        const coords = data.routes[0].geometry.coordinates.map((coord: number[]) => ({
+          latitude: coord[1],
+          longitude: coord[0]
+        }));
+        
+        setRouteCoordinates(coords);
+        
+        // Calculate distance and duration
+        const distanceInKm = (data.routes[0].distance / 1000).toFixed(1);
+        const durationInMins = Math.round(data.routes[0].duration / 60);
+        setDistance(`${distanceInKm} km`);
+        setDuration(`${durationInMins} mins`);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Unable to get directions');
+      console.error(error);
+    }
+  };
+
+  const handleInAppNavigation = (station: Station) => {
+    getDirections(station);
+    setSelectedStation(null); // This will close the modal
+  };
+
+  const clearRoute = () => {
+    setRouteCoordinates([]);
+    setDistance('');
+    setDuration('');
   };
 
   const toggleFavorite = (station: Station) => {
@@ -374,6 +410,13 @@ export default function MapScreen() {
         showsMyLocationButton
         onMapReady={handleMapReady}
       >
+        {routeCoordinates.length > 0 && (
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeWidth={4}
+            strokeColor="#4CAF50"
+          />
+        )}
         {filteredStations.map((station) => (
           <Marker
             key={station.id}
@@ -386,6 +429,16 @@ export default function MapScreen() {
           />
         ))}
       </MapView>
+
+      {(distance || duration) && (
+        <View style={styles.routeInfoContainer}>
+          <Text style={styles.routeInfoText}>Distance: {distance}</Text>
+          <Text style={styles.routeInfoText}>Duration: {duration}</Text>
+          <TouchableOpacity onPress={clearRoute} style={styles.clearRouteButton}>
+            <Text style={styles.clearRouteText}>Clear Route</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {selectedStation && (
         <Modal
@@ -419,10 +472,10 @@ export default function MapScreen() {
               <Text style={styles.operatingHours}>Hours: {selectedStation.operatingHours}</Text>
               <TouchableOpacity 
                 style={styles.navigationButton}
-                onPress={() => handleOpenNavigation(selectedStation.address)}
+                onPress={() => handleInAppNavigation(selectedStation)}
               >
-                <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
-                <Text style={styles.navigationButtonText}>Navigate</Text>
+                <Ionicons name="navigate" size={24} color="#fff" />
+                <Text style={styles.navigationButtonText}>Show Route</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -531,15 +584,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#4CAF50',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 20,
-    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
   },
   navigationButtonText: {
-    color: 'white',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
   errorContainer: {
     position: 'absolute',
@@ -569,5 +622,35 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     fontSize: 14,
+  },
+  routeInfoContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  routeInfoText: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: '#333',
+  },
+  clearRouteButton: {
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#ff4444',
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  clearRouteText: {
+    color: 'white',
+    fontWeight: '600',
   },
 });
