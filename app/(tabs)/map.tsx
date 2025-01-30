@@ -381,36 +381,46 @@ export default function MapScreen() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    const db = getFirestore();
-    const stationsRef = collection(db, 'stations');
+    setErrorMsg(null);
+    setNoResults(false);
     
-    // Query for verified stations
-    const verifiedStationsQuery = query(
-      stationsRef,
-      where('status', '==', 'verified')
-    );
-    
-    const querySnapshot = await getDocs(verifiedStationsQuery);
-    const fetchedStations: Station[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      fetchedStations.push({
-        id: doc.id,
-        name: data.name,
-        latitude: parseFloat(data.latitude),
-        longitude: parseFloat(data.longitude),
-        address: data.address,
-        operatingHours: data.operatingHours,
-        price: data.price || 85.50,
-        rating: data.rating || 0,
-        status: 'verified',
-        verificationCount: data.verificationCount || 0
+    try {
+      const db = getFirestore();
+      const stationsRef = collection(db, 'stations');
+      
+      // Query for verified stations
+      const verifiedStationsQuery = query(
+        stationsRef,
+        where('status', '==', 'verified')
+      );
+      
+      const querySnapshot = await getDocs(verifiedStationsQuery);
+      const fetchedStations: Station[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        fetchedStations.push({
+          id: doc.id,
+          name: data.name,
+          latitude: parseFloat(data.latitude),
+          longitude: parseFloat(data.longitude),
+          address: data.address,
+          operatingHours: data.operatingHours,
+          price: data.price || 85.50,
+          rating: data.rating || 0,
+          status: 'verified',
+          verificationCount: data.verificationCount || 0
+        });
       });
-    });
-    
-    setStations(fetchedStations);
-    setRefreshing(false);
+      
+      setStations(fetchedStations);
+      setNoResults(fetchedStations.length === 0);
+    } catch (error) {
+      console.error('Error refreshing stations:', error);
+      setErrorMsg('Failed to refresh stations');
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   if (isLoading && !mapReady) {
