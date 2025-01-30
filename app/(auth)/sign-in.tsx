@@ -2,20 +2,23 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GlassCard } from '@/components/auth/GlassCard';
+import { FuturisticInput } from '@/components/auth/FuturisticInput';
+import { GradientButton } from '@/components/auth/GradientButton';
+import { Logo } from '@/components/auth/Logo';
 
 const { width } = Dimensions.get('window');
 
@@ -40,52 +43,41 @@ export default function SignInScreen() {
     >
       <StatusBar style="light" />
       <LinearGradient
-        colors={['#4CAF50', '#2E7D32']}
+        colors={['#1a237e', '#0d47a1', '#01579b']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
+        {/* Animated background circles */}
+        <View style={[styles.circle, styles.circle1]} />
+        <View style={[styles.circle, styles.circle2]} />
+        <View style={[styles.circle, styles.circle3]} />
+
         <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
-          </View>
+          <Logo />
 
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, error && styles.inputError]}
-                placeholder="Email"
-                placeholderTextColor="#666"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!isLoading}
-              />
-            </View>
+          <GlassCard style={styles.form}>
+            <FuturisticInput
+              icon="mail-outline"
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!isLoading}
+              error={!!error}
+            />
 
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, error && styles.inputError]}
-                placeholder="Password"
-                placeholderTextColor="#666"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                editable={!isLoading}
-              />
-              <TouchableOpacity
-                style={styles.passwordToggle}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
+            <FuturisticInput
+              icon="lock-closed-outline"
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              editable={!isLoading}
+              error={!!error}
+              style={{ marginBottom: error ? 8 : 16 }}
+            />
 
             {error && (
               <View style={styles.errorContainer}>
@@ -95,23 +87,19 @@ export default function SignInScreen() {
             )}
 
             <TouchableOpacity
-              style={[styles.forgotPassword]}
+              style={styles.forgotPassword}
               onPress={() => Alert.alert('Reset Password', 'Feature coming soon!')}
             >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+            <GradientButton
+              title="Sign In"
               onPress={handleSignIn}
+              loading={isLoading}
               disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
+              style={styles.signInButton}
+            />
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -120,14 +108,18 @@ export default function SignInScreen() {
             </View>
 
             <View style={styles.socialButtons}>
-              <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
-                <Ionicons name="logo-google" size={20} color="#fff" />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.socialButton, styles.appleButton]}>
-                <Ionicons name="logo-apple" size={20} color="#fff" />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
+              <GradientButton
+                title="Google"
+                variant="secondary"
+                style={styles.socialButton}
+                onPress={() => Alert.alert('Coming Soon', 'Google sign-in will be available soon!')}
+              />
+              <GradientButton
+                title="Apple"
+                variant="secondary"
+                style={styles.socialButton}
+                onPress={() => Alert.alert('Coming Soon', 'Apple sign-in will be available soon!')}
+              />
             </View>
 
             <View style={styles.footer}>
@@ -138,7 +130,7 @@ export default function SignInScreen() {
                 </TouchableOpacity>
               </Link>
             </View>
-          </View>
+          </GlassCard>
         </View>
       </LinearGradient>
     </KeyboardAvoidingView>
@@ -151,59 +143,46 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
+    position: 'relative',
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  circle1: {
+    width: 400,
+    height: 400,
+    top: -200,
+    left: -100,
+    transform: [{ rotate: '45deg' }],
+  },
+  circle2: {
+    width: 300,
+    height: 300,
+    top: 100,
+    right: -150,
+    transform: [{ rotate: '30deg' }],
+  },
+  circle3: {
+    width: 200,
+    height: 200,
+    bottom: -50,
+    left: -50,
+    transform: [{ rotate: '60deg' }],
   },
   content: {
     flex: 1,
     padding: 20,
     justifyContent: 'center',
   },
-  header: {
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-    color: '#fff',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-  },
   form: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 20,
-    padding: 20,
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    color: '#333',
-    fontSize: 16,
-  },
-  inputError: {
-    borderColor: '#ff4444',
-  },
-  passwordToggle: {
-    padding: 8,
+  signInButton: {
+    marginTop: 8,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -226,27 +205,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 14,
   },
-  button: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  buttonDisabled: {
-    backgroundColor: '#a5d6a7',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,24 +226,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 12,
     width: '48%',
-  },
-  googleButton: {
-    backgroundColor: '#DB4437',
-  },
-  appleButton: {
-    backgroundColor: '#000',
-  },
-  socialButtonText: {
-    color: '#fff',
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
