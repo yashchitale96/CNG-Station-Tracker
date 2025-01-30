@@ -14,7 +14,8 @@ import {
   Alert,
   Keyboard,
   RefreshControl,
-  ScrollView
+  ScrollView,
+  Share
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -40,6 +41,12 @@ interface Station {
   rating: number;
   status: 'pending' | 'verified' | 'rejected';
   verificationCount: number;
+}
+
+interface NavigationApp {
+  name: string;
+  icon: string;
+  action: (lat: number, lng: number, label: string) => Promise<void>;
 }
 
 const INITIAL_REGION = {
@@ -248,21 +255,97 @@ export default function MapScreen() {
     return currentTime >= startTime && currentTime <= endTime;
   };
 
-  const calculateDistance = (station: Station) => {
-    if (!location) return Infinity;
-    
-    const R = 6371; 
-    const lat1 = location.coords.latitude * Math.PI / 180;
-    const lat2 = station.latitude * Math.PI / 180;
-    const dLat = (station.latitude - location.coords.latitude) * Math.PI / 180;
-    const dLon = (station.longitude - location.coords.longitude) * Math.PI / 180;
-    
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-             Math.cos(lat1) * Math.cos(lat2) *
-             Math.sin(dLon/2) * Math.sin(dLon/2);
-    
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  };
+
+  const formatDistance = (distance: number): string => {
+    if (distance < 1) {
+      return `${Math.round(distance * 1000)} m`;
+    }
+    return `${distance.toFixed(1)} km`;
+  };
+
+  const navigationApps: NavigationApp[] = useMemo(() => [
+    {
+      name: 'Google Maps',
+      icon: 'navigate',
+      action: async (lat: number, lng: number, label: string) => {
+        const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving&destination_place_id=${label}`;
+        const supported = await Linking.canOpenURL(url);
+        if (supported) {
+          await Linking.openURL(url);
+        } else {
+          const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+          await Linking.openURL(webUrl);
+        }
+      }
+    },
+    {
+      name: 'Waze',
+      icon: 'car',
+      action: async (lat: number, lng: number) => {
+        const url = `waze://?ll=${lat},${lng}&navigate=yes`;
+        const supported = await Linking.canOpenURL(url);
+        if (supported) {
+          await Linking.openURL(url);
+        } else {
+          const webUrl = `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+          await Linking.openURL(webUrl);
+        }
+      }
+    },
+    {
+      name: 'Share',
+      icon: 'share-social',
+      action: async (lat: number, lng: number, label: string) => {
+        const shareMessage = `CNG Station: ${label}\nLocation: ${lat},${lng}\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+        await Share.share({
+          message: shareMessage,
+          title: 'Share Station Location'
+        });
+      }
+    }
+  ], []);
+
+  const handleOpenNavigation = async (station: Station) => {
+    try {
+      if (!location) {
+        Alert.alert(
+          'Location Required',
+          'Please enable location services to use navigation.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Navigate to Station',
+        'Choose your preferred navigation app:',
+        [
+          ...navigationApps.map(app => ({
+            text: app.name,
+            onPress: () => app.action(station.latitude, station.longitude, station.name)
+          })),
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert(
+        'Navigation Error',
+        'Unable to open navigation. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const filteredStations = useMemo(() => {
@@ -296,7 +379,17 @@ export default function MapScreen() {
     });
 
     if (location && filterOptions.sortBy === 'distance') {
-      filtered.sort((a, b) => calculateDistance(a) - calculateDistance(b));
+      filtered.sort((a, b) => calculateDistance(
+        location.coords.latitude,
+        location.coords.longitude,
+        a.latitude,
+        a.longitude
+      ) - calculateDistance(
+        location.coords.latitude,
+        location.coords.longitude,
+        b.latitude,
+        b.longitude
+      ));
     } else if (filterOptions.sortBy === 'price') {
       filtered.sort((a, b) => {
         const priceA = stationPrices[a.id] || a.price;
@@ -322,17 +415,6 @@ export default function MapScreen() {
 
   const closeModal = () => {
     setSelectedStation(null);
-  };
-
-  const handleOpenNavigation = (address: string | undefined) => {
-    if (!address) return;
-    
-    const encodedAddress = encodeURIComponent(address);
-    if (Platform.OS === 'ios') {
-      Linking.openURL(`maps://0,0?q=${encodedAddress}`);
-    } else {
-      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
-    }
   };
 
   const toggleFavorite = (station: Station) => {
@@ -524,6 +606,16 @@ export default function MapScreen() {
                     </TouchableOpacity>
                   </View>
                   <Text style={[styles.stationAddress, { color: colors.text }]}>{selectedStation.address}</Text>
+                  {location && (
+                    <Text style={[styles.distanceText, { color: colors.text }]}>
+                      Distance: {formatDistance(calculateDistance(
+                        location.coords.latitude,
+                        location.coords.longitude,
+                        selectedStation.latitude,
+                        selectedStation.longitude
+                      ))}
+                    </Text>
+                  )}
                   <View style={styles.priceContainer}>
                     <Text style={[styles.stationPrice, { color: colors.text }]}>
                       Price: ₹{(stationPrices[selectedStation.id] || selectedStation.price).toFixed(2)}/kg
@@ -531,13 +623,18 @@ export default function MapScreen() {
                     {getPriceChangeIndicator(selectedStation.id)}
                   </View>
                   <Text style={[styles.operatingHours, { color: colors.text }]}>Hours: {selectedStation.operatingHours}</Text>
-                  <TouchableOpacity 
-                    style={styles.navigationButton}
-                    onPress={() => handleOpenNavigation(selectedStation.address)}
-                  >
-                    <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
-                    <Text style={styles.navigationButtonText}>Navigate</Text>
-                  </TouchableOpacity>
+                  <View style={styles.navigationContainer}>
+                    {navigationApps.map((app, index) => (
+                      <TouchableOpacity 
+                        key={app.name}
+                        style={[styles.navigationButton, index > 0 && styles.navigationButtonMargin]}
+                        onPress={() => handleOpenNavigation(selectedStation)}
+                      >
+                        <Ionicons name={app.icon} size={20} color="#FFF" />
+                        <Text style={styles.navigationButtonText}>{app.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </View>
             </Modal>
@@ -649,20 +746,38 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 20,
   },
+  navigationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 15,
+    paddingHorizontal: 10,
+  },
   navigationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#4CAF50',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 20,
-    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  navigationButtonMargin: {
+    marginLeft: 10,
   },
   navigationButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: '#FFF',
+    marginLeft: 5,
+    fontSize: 14,
     fontWeight: '600',
+  },
+  distanceText: {
+    fontSize: 14,
+    marginTop: 5,
+    marginBottom: 5,
   },
   errorContainer: {
     position: 'absolute',
