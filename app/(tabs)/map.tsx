@@ -12,7 +12,9 @@ import {
   SafeAreaView,
   Linking,
   Alert,
-  Keyboard
+  Keyboard,
+  RefreshControl,
+  ScrollView
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -68,6 +70,7 @@ export default function MapScreen() {
   const [priceUpdates, setPriceUpdates] = useState<Record<string, { timestamp: number; change: number }>>({});
   const [noResults, setNoResults] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavorites();
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -376,6 +379,40 @@ export default function MapScreen() {
     });
   };
 
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    const db = getFirestore();
+    const stationsRef = collection(db, 'stations');
+    
+    // Query for verified stations
+    const verifiedStationsQuery = query(
+      stationsRef,
+      where('status', '==', 'verified')
+    );
+    
+    const querySnapshot = await getDocs(verifiedStationsQuery);
+    const fetchedStations: Station[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      fetchedStations.push({
+        id: doc.id,
+        name: data.name,
+        latitude: parseFloat(data.latitude),
+        longitude: parseFloat(data.longitude),
+        address: data.address,
+        operatingHours: data.operatingHours,
+        price: data.price || 85.50,
+        rating: data.rating || 0,
+        status: 'verified',
+        verificationCount: data.verificationCount || 0
+      });
+    });
+    
+    setStations(fetchedStations);
+    setRefreshing(false);
+  }, []);
+
   if (isLoading && !mapReady) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
@@ -395,103 +432,114 @@ export default function MapScreen() {
   } : INITIAL_REGION;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <View style={styles.container}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.searchContainer}>
-          <SearchFilters
-            searchQuery={searchQuery}
-            onSearchChange={handleSearchChange}
-            onFilterPress={() => {
-              Keyboard.dismiss();
-              setShowFilters(true);
-            }}
-            style={styles.searchBar}
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.text}
           />
-        </View>
-
-        <FilterModal
-          visible={showFilters}
-          onClose={() => setShowFilters(false)}
-          options={filterOptions}
-          onChange={setFilterOptions}
-          onReset={resetFilters}
-        />
-
-        {noResults && (
-          <View style={styles.noResultsContainer}>
-            <Text style={styles.noResultsText}>No stations found matching "{searchQuery}"</Text>
-          </View>
-        )}
-
-        <MapView
-          style={styles.map}
-          initialRegion={mapRegion}
-          showsUserLocation
-          showsMyLocationButton
-          onMapReady={handleMapReady}
-        >
-          {filteredStations.map((station) => (
-            <Marker
-              key={station.id}
-              coordinate={{
-                latitude: station.latitude,
-                longitude: station.longitude,
+        }
+      >
+        <View style={styles.container}>
+          <StatusBar barStyle="dark-content" />
+          <View style={styles.searchContainer}>
+            <SearchFilters
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              onFilterPress={() => {
+                Keyboard.dismiss();
+                setShowFilters(true);
               }}
-              onPress={() => handleStationPress(station)}
-              pinColor="#4CAF50"
+              style={styles.searchBar}
             />
-          ))}
-        </MapView>
+          </View>
 
-        {selectedStation && (
-          <Modal
-            animationType="slide"
-            transparent={true}
-            visible={!!selectedStation}
-            onRequestClose={closeModal}
+          <FilterModal
+            visible={showFilters}
+            onClose={() => setShowFilters(false)}
+            options={filterOptions}
+            onChange={setFilterOptions}
+            onReset={resetFilters}
+          />
+
+          {noResults && (
+            <View style={styles.noResultsContainer}>
+              <Text style={styles.noResultsText}>No stations found matching "{searchQuery}"</Text>
+            </View>
+          )}
+
+          <MapView
+            style={styles.map}
+            initialRegion={mapRegion}
+            showsUserLocation
+            showsMyLocationButton
+            onMapReady={handleMapReady}
           >
-            <View style={styles.modalContainer}>
-              <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-                <View style={styles.modalHeader}>
-                  <Text style={[styles.stationName, { color: colors.text }]}>{selectedStation.name}</Text>
-                  <TouchableOpacity
-                    onPress={() => toggleFavorite(selectedStation)}
-                    style={styles.favoriteButton}
+            {filteredStations.map((station) => (
+              <Marker
+                key={station.id}
+                coordinate={{
+                  latitude: station.latitude,
+                  longitude: station.longitude,
+                }}
+                onPress={() => handleStationPress(station)}
+                pinColor="#4CAF50"
+              />
+            ))}
+          </MapView>
+
+          {selectedStation && (
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={!!selectedStation}
+              onRequestClose={closeModal}
+            >
+              <View style={styles.modalContainer}>
+                <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.stationName, { color: colors.text }]}>{selectedStation.name}</Text>
+                    <TouchableOpacity
+                      onPress={() => toggleFavorite(selectedStation)}
+                      style={styles.favoriteButton}
+                    >
+                      <Ionicons
+                        name={isFavorite(selectedStation.id) ? "heart" : "heart-outline"}
+                        size={24}
+                        color={isFavorite(selectedStation.id) ? "#FF0000" : "#000"}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.stationAddress, { color: colors.text }]}>{selectedStation.address}</Text>
+                  <View style={styles.priceContainer}>
+                    <Text style={[styles.stationPrice, { color: colors.text }]}>
+                      Price: ₹{(stationPrices[selectedStation.id] || selectedStation.price).toFixed(2)}/kg
+                    </Text>
+                    {getPriceChangeIndicator(selectedStation.id)}
+                  </View>
+                  <Text style={[styles.operatingHours, { color: colors.text }]}>Hours: {selectedStation.operatingHours}</Text>
+                  <TouchableOpacity 
+                    style={styles.navigationButton}
+                    onPress={() => handleOpenNavigation(selectedStation.address)}
                   >
-                    <Ionicons
-                      name={isFavorite(selectedStation.id) ? "heart" : "heart-outline"}
-                      size={24}
-                      color={isFavorite(selectedStation.id) ? "#FF0000" : "#000"}
-                    />
+                    <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
+                    <Text style={styles.navigationButtonText}>Navigate</Text>
                   </TouchableOpacity>
                 </View>
-                <Text style={[styles.stationAddress, { color: colors.text }]}>{selectedStation.address}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={[styles.stationPrice, { color: colors.text }]}>
-                    Price: ₹{(stationPrices[selectedStation.id] || selectedStation.price).toFixed(2)}/kg
-                  </Text>
-                  {getPriceChangeIndicator(selectedStation.id)}
-                </View>
-                <Text style={[styles.operatingHours, { color: colors.text }]}>Hours: {selectedStation.operatingHours}</Text>
-                <TouchableOpacity 
-                  style={styles.navigationButton}
-                  onPress={() => handleOpenNavigation(selectedStation.address)}
-                >
-                  <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={20} color="#FFF" />
-                  <Text style={styles.navigationButtonText}>Navigate</Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          </Modal>
-        )}
+            </Modal>
+          )}
 
-        {errorMsg && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMsg}</Text>
-          </View>
-        )}
-      </View>
+          {errorMsg && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -500,6 +548,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  scrollView: {
+    flex: 1,
   },
   container: {
     flex: 1,
