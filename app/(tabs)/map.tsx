@@ -277,7 +277,7 @@ export default function MapScreen() {
   const navigationApps: NavigationApp[] = useMemo(() => [
     {
       name: 'Google Maps',
-      icon: 'navigate',
+      icon: 'navigate-circle-outline',
       action: async (lat: number, lng: number, label: string) => {
         const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving&destination_place_id=${label}`;
         const supported = await Linking.canOpenURL(url);
@@ -634,7 +634,7 @@ export default function MapScreen() {
                         onPress={() => handleOpenNavigation(selectedStation)}
                       >
                         <Ionicons name={app.icon} size={20} color="#FFF" />
-                        <Text style={styles.navigationButtonText}>{app.name}</Text>
+                        <Text style={[styles.navigationButtonText, { marginLeft: 8 }]}> {app.name}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -773,10 +773,8 @@ const styles = StyleSheet.create({
   },
   navigationButtonText: {
     color: '#FFF',
-    marginLeft: 5,
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
   },
   distanceText: {
     fontSize: 14,
