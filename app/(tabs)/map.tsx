@@ -45,7 +45,7 @@ interface Station {
 
 interface NavigationApp {
   name: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   action: (lat: number, lng: number, label: string) => Promise<void>;
 }
 

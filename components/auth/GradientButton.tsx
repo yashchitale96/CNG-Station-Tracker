@@ -16,8 +16,8 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
   ...props
 }) => {
   const gradientColors = variant === 'primary' 
-    ? ['#4CAF50', '#2E7D32']
-    : ['#424242', '#212121'];
+    ? ['#4CAF50', '#2E7D32'] as const
+    : ['#424242', '#212121'] as const;
 
   return (
     <TouchableOpacity
