@@ -1,10 +1,14 @@
+// This is used for the stations option which shown on UI which shows the list of stations available for the verification
+
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, View, RefreshControl, Alert, Platform, StatusBar, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, getFirestore, orderBy, query } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
+import Colors from '@/constants/Colors';
+import { useColorScheme } from 'react-native';
 
 interface Station {
   id: string;
@@ -20,11 +24,24 @@ interface Station {
 export default function StationsScreen() {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
 
   useEffect(() => {
     loadStations();
   }, []);
+
+  const showToast = (message: string, isError = false) => {
+    Alert.alert(
+      isError ? 'Error' : 'Success',
+      message,
+      [{ text: 'OK', style: 'default' }],
+      { cancelable: true }
+    );
+  };
 
   const loadStations = async () => {
     try {
@@ -39,12 +56,25 @@ export default function StationsScreen() {
       })) as Station[];
 
       setStations(stationsList);
+      setLastRefreshed(new Date());
+      if (refreshing) {
+        showToast('Stations list updated successfully');
+      }
     } catch (error) {
       console.error('Error loading stations:', error);
+      if (refreshing) {
+        showToast('Failed to update stations list', true);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    loadStations();
+  }, []);
 
   const renderStationItem = ({ item }: { item: Station }) => (
     <TouchableOpacity
@@ -93,31 +123,59 @@ export default function StationsScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </ThemedView>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+        <ThemedView style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </ThemedView>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <FlatList
-        data={stations}
-        renderItem={renderStationItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContainer}
-        ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
-        ListEmptyComponent={() => (
-          <ThemedView style={styles.emptyContainer}>
-            <ThemedText type="subtitle">No stations found</ThemedText>
-          </ThemedView>
-        )}
-      />
-    </ThemedView>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ThemedView style={styles.container}>
+        <FlatList
+          data={stations}
+          renderItem={renderStationItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContainer}
+          ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.tint]} // Android
+              tintColor={colors.tint} // iOS
+              progressViewOffset={10}
+              progressBackgroundColor="#ffffff"
+            />
+          }
+          ListHeaderComponent={() => (
+            lastRefreshed && (
+              <ThemedText type="subtitle" style={styles.lastRefreshed}>
+                Last updated: {lastRefreshed.toLocaleTimeString()}
+              </ThemedText>
+            )
+          )}
+          ListEmptyComponent={() => (
+            <ThemedView style={styles.emptyContainer}>
+              <ThemedText type="subtitle">No stations found</ThemedText>
+              <ThemedText type="subtitle" style={styles.pullToRefresh}>
+                Pull down to refresh
+              </ThemedText>
+            </ThemedView>
+          )}
+        />
+      </ThemedView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
   },
@@ -128,6 +186,16 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
+  },
+  lastRefreshed: {
+    fontSize: 12,
+    opacity: 0.7,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  pullToRefresh: {
+    marginTop: 8,
+    opacity: 0.5,
   },
   stationItem: {
     borderRadius: 8,

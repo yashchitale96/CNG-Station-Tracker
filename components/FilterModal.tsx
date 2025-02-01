@@ -8,9 +8,15 @@ import {
   ScrollView,
   Switch,
   Platform,
-  Pressable
+  Pressable,
+  TextInput,
+  StatusBar,
+  SafeAreaView,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Colors from '../constants/Colors';
+import { useColorScheme } from 'react-native';
 
 export interface FilterOptions {
   priceRange: { min: number; max: number };
@@ -28,8 +34,11 @@ interface FilterModalProps {
   onReset: () => void;
 }
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 export function FilterModal({ visible, onClose, options, onChange, onReset }: FilterModalProps) {
-  const PRICE_STEPS = Array.from({ length: 21 }, (_, i) => 80 + i * 0.5);
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
 
   const handlePriceChange = (type: 'min' | 'max', value: number) => {
     const newRange = { ...options.priceRange };
@@ -43,168 +52,195 @@ export function FilterModal({ visible, onClose, options, onChange, onReset }: Fi
 
   return (
     <Modal
-      visible={visible}
       animationType="slide"
       transparent={true}
+      visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Filter Stations</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.scrollContent}>
-            {/* Price Range Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Price Range (₹/kg)</Text>
-              <View style={styles.priceLabels}>
-                <Text>₹{options.priceRange.min.toFixed(2)}</Text>
-                <Text>₹{options.priceRange.max.toFixed(2)}</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.priceStepsContainer}>
-                {PRICE_STEPS.map((price) => (
-                  <Pressable
-                    key={price}
-                    onPress={() => handlePriceChange('min', price)}
-                    style={[
-                      styles.priceStep,
-                      price >= options.priceRange.min && price <= options.priceRange.max && styles.priceStepActive,
-                      price === options.priceRange.min && styles.priceStepMin,
-                      price === options.priceRange.max && styles.priceStepMax,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.priceStepText,
-                      (price === options.priceRange.min || price === options.priceRange.max) && styles.priceStepTextActive
-                    ]}>
-                      {price.toFixed(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+        <View style={styles.modalContainer}>
+          <View style={[styles.contentContainer, { backgroundColor: colors.background }]}>
+            <View style={styles.header}>
+              <Text style={[styles.title, { color: colors.text }]}>Filter Stations</Text>
+              <TouchableOpacity 
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
             </View>
 
-            {/* Switches Section */}
-            <View style={styles.section}>
-              <View style={styles.switchRow}>
-                <Text>Show Only Open Stations</Text>
-                <Switch
-                  value={options.onlyOpen}
-                  onValueChange={(value) => onChange({ ...options, onlyOpen: value })}
-                />
+            <ScrollView 
+              style={styles.scrollView}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Price Range</Text>
+                <View style={styles.row}>
+                  <TextInput
+                    style={[styles.priceInput, { 
+                      color: colors.text,
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border
+                    }]}
+                    placeholder="Min"
+                    placeholderTextColor={colors.tabIconDefault}
+                    keyboardType="numeric"
+                    value={options.priceRange.min.toString()}
+                    onChangeText={(value) => handlePriceChange('min', Number(value))}
+                  />
+                  <TextInput
+                    style={[styles.priceInput, { 
+                      color: colors.text,
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: colors.border
+                    }]}
+                    placeholder="Max"
+                    placeholderTextColor={colors.tabIconDefault}
+                    keyboardType="numeric"
+                    value={options.priceRange.max.toString()}
+                    onChangeText={(value) => handlePriceChange('max', Number(value))}
+                  />
+                </View>
               </View>
-              <View style={styles.switchRow}>
-                <Text>Show Only Favorites</Text>
-                <Switch
-                  value={options.onlyFavorites}
-                  onValueChange={(value) => onChange({ ...options, onlyFavorites: value })}
-                />
-              </View>
-            </View>
 
-            {/* Rating Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Minimum Rating</Text>
-              <View style={styles.ratingContainer}>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <TouchableOpacity
-                    key={rating}
-                    onPress={() => onChange({ ...options, rating })}
-                    style={styles.starContainer}
-                  >
-                    <Ionicons
-                      name={rating <= options.rating ? "star" : "star-outline"}
-                      size={24}
-                      color={rating <= options.rating ? "#FFD700" : "#666"}
-                    />
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Filters</Text>
+                <View style={styles.switchContainer}>
+                  <Text style={[styles.switchLabel, { color: colors.text }]}>Only Open Stations</Text>
+                  <Switch
+                    value={options.onlyOpen}
+                    onValueChange={(value) => onChange({ ...options, onlyOpen: value })}
+                    trackColor={{ false: '#767577', true: colors.tint }}
+                    thumbColor={Platform.OS === 'android' ? (options.onlyOpen ? colors.tint : '#f4f3f4') : ''}
+                  />
+                </View>
+                <View style={styles.switchContainer}>
+                  <Text style={[styles.switchLabel, { color: colors.text }]}>Only Favorites</Text>
+                  <Switch
+                    value={options.onlyFavorites}
+                    onValueChange={(value) => onChange({ ...options, onlyFavorites: value })}
+                    trackColor={{ false: '#767577', true: colors.tint }}
+                    thumbColor={Platform.OS === 'android' ? (options.onlyFavorites ? colors.tint : '#f4f3f4') : ''}
+                  />
+                </View>
               </View>
-            </View>
 
-            {/* Sort By Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Sort By</Text>
-              <View style={styles.sortButtons}>
-                {[
-                  { key: 'price', label: 'Price', icon: 'pricetag' },
-                  { key: 'distance', label: 'Distance', icon: 'location' },
-                  { key: 'rating', label: 'Rating', icon: 'star' },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.key}
-                    style={[
-                      styles.sortButton,
-                      options.sortBy === item.key && styles.sortButtonActive,
-                    ]}
-                    onPress={() => onChange({ ...options, sortBy: item.key as FilterOptions['sortBy'] })}
-                  >
-                    <Ionicons
-                      name={item.icon}
-                      size={20}
-                      color={options.sortBy === item.key ? '#fff' : '#666'}
-                    />
-                    <Text
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Minimum Rating</Text>
+                <View style={styles.ratingContainer}>
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <TouchableOpacity
+                      key={rating}
+                      onPress={() => onChange({ ...options, rating })}
+                      style={styles.star}
+                      hitSlop={{ top: 10, bottom: 10, left: 5, right: 5 }}
+                    >
+                      <Ionicons
+                        name={rating <= options.rating ? 'star' : 'star-outline'}
+                        size={24}
+                        color={rating <= options.rating ? '#FFD700' : colors.tabIconDefault}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>Sort By</Text>
+                <View style={styles.sortByContainer}>
+                  {(['price', 'distance', 'rating'] as const).map((sort) => (
+                    <TouchableOpacity
+                      key={sort}
+                      onPress={() => onChange({ ...options, sortBy: sort })}
                       style={[
-                        styles.sortButtonText,
-                        options.sortBy === item.key && styles.sortButtonTextActive,
+                        styles.sortByOption,
+                        { borderColor: colors.border },
+                        options.sortBy === sort && [styles.sortByOptionSelected, { backgroundColor: colors.tint }]
                       ]}
                     >
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.sortByText,
+                          { color: colors.text },
+                          options.sortBy === sort && styles.sortByTextSelected
+                        ]}
+                      >
+                        {sort.charAt(0).toUpperCase() + sort.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
-          </ScrollView>
+            </ScrollView>
 
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.resetButton} onPress={onReset}>
-              <Text style={styles.resetButtonText}>Reset Filters</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={onClose}>
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.resetButton, { borderColor: colors.border }]}
+                onPress={onReset}
+              >
+                <Text style={[styles.buttonText, styles.resetButtonText, { color: colors.text }]}>
+                  Reset
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.applyButton, { backgroundColor: colors.tint }]}
+                onPress={onClose}
+              >
+                <Text style={[styles.buttonText, styles.applyButtonText]}>
+                  Apply
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modalContent: {
-    backgroundColor: 'white',
+  contentContainer: {
+    maxHeight: SCREEN_HEIGHT * 0.85,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  scrollView: {
+    maxHeight: SCREEN_HEIGHT * 0.6,
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginBottom: 20,
+    paddingHorizontal: Platform.OS === 'android' ? 4 : 0,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  scrollContent: {
-    padding: 16,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
@@ -214,110 +250,85 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  priceLabels: {
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 12,
   },
-  priceStepsContainer: {
-    flexDirection: 'row',
-    paddingVertical: 8,
+  priceInput: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    fontSize: 16,
   },
-  priceStep: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 2,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  priceStepActive: {
-    backgroundColor: '#e3f2fd',
-  },
-  priceStepMin: {
-    backgroundColor: '#007AFF',
-  },
-  priceStepMax: {
-    backgroundColor: '#007AFF',
-  },
-  priceStepText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  priceStepTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  switchRow: {
+  switchContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  switchLabel: {
+    fontSize: 16,
   },
   ratingContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 32,
+    gap: 8,
   },
-  starContainer: {
+  star: {
     padding: 4,
   },
-  sortButtons: {
+  sortByContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
+  sortByOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
-    flex: 1,
-    marginHorizontal: 4,
-    justifyContent: 'center',
   },
-  sortButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+  sortByOptionSelected: {
+    borderWidth: 0,
   },
-  sortButtonText: {
-    marginLeft: 4,
-    color: '#666',
+  sortByText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  sortButtonTextActive: {
+  sortByTextSelected: {
     color: '#fff',
   },
-  footer: {
+  buttonContainer: {
     flexDirection: 'row',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    gap: 12,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
   resetButton: {
     flex: 1,
-    padding: 12,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#007AFF',
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  resetButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
   },
   applyButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#007AFF',
-    marginLeft: 8,
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 8,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resetButtonText: {
+    opacity: 0.8,
   },
   applyButtonText: {
     color: '#fff',
-    fontWeight: '600',
   },
 });

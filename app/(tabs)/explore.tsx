@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, StatusBar, SafeAreaView } from 'react-native';
 import { useColorScheme } from 'react-native';
 import Colors from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,68 +47,74 @@ export default function ExploreScreen() {
   ];
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>
-          Explore Features
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
-          Discover what you can do with CNG Station Tracker
-        </Text>
-      </View>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ScrollView 
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Explore Features
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.tabIconDefault }]}>
+            Discover what you can do with CNG Station Tracker
+          </Text>
+        </View>
 
-      <View style={styles.featuresGrid}>
-        {features.map((feature, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.featureCard, { backgroundColor: colors.background, borderColor: colors.tint }]}
-            onPress={feature.action}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: colors.tint }]}>
-              <Ionicons name={feature.icon as any} size={24} color="#fff" />
+        <View style={styles.featuresGrid}>
+          {features.map((feature, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.featureCard, { backgroundColor: colors.background, borderColor: colors.tint }]}
+              onPress={feature.action}
+            >
+              <View style={[styles.iconContainer, { backgroundColor: colors.tint }]}>
+                <Ionicons name={feature.icon as any} size={24} color="#fff" />
+              </View>
+              <Text style={[styles.featureTitle, { color: colors.text }]}>
+                {feature.title}
+              </Text>
+              <Text style={[styles.featureDescription, { color: colors.tabIconDefault }]}>
+                {feature.description}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.tipsSection}>
+          <Text style={[styles.tipsTitle, { color: colors.text }]}>
+            Pro Tips
+          </Text>
+          {tips.map((tip, index) => (
+            <View 
+              key={index}
+              style={[styles.tipCard, { backgroundColor: colors.background, borderColor: colors.tint }]}
+            >
+              <Ionicons name="bulb" size={20} color={colors.tint} style={styles.tipIcon} />
+              <Text style={[styles.tipText, { color: colors.text }]}>{tip}</Text>
             </View>
-            <Text style={[styles.featureTitle, { color: colors.text }]}>
-              {feature.title}
-            </Text>
-            <Text style={[styles.featureDescription, { color: colors.tabIconDefault }]}>
-              {feature.description}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+          ))}
+        </View>
 
-      <View style={styles.tipsSection}>
-        <Text style={[styles.tipsTitle, { color: colors.text }]}>
-          Pro Tips
-        </Text>
-        {tips.map((tip, index) => (
-          <View 
-            key={index}
-            style={[styles.tipCard, { backgroundColor: colors.background, borderColor: colors.tint }]}
+        {user && (
+          <TouchableOpacity
+            style={[styles.profileButton, { backgroundColor: colors.tint }]}
+            onPress={() => router.push('/(tabs)/profile')}
           >
-            <Ionicons name="bulb" size={20} color={colors.tint} style={styles.tipIcon} />
-            <Text style={[styles.tipText, { color: colors.text }]}>{tip}</Text>
-          </View>
-        ))}
-      </View>
-
-      {user && (
-        <TouchableOpacity
-          style={[styles.profileButton, { backgroundColor: colors.tint }]}
-          onPress={() => router.push('/(tabs)/profile')}
-        >
-          <Text style={styles.profileButtonText}>View Your Profile</Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+            <Text style={styles.profileButtonText}>View Your Profile</Text>
+            <Ionicons name="arrow-forward" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
   },

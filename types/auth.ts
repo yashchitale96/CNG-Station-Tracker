@@ -1,3 +1,4 @@
+// This file shows the user name on the UI
 export interface User {
   id: string;
   email: string;
@@ -21,13 +22,6 @@ export interface UserPreferences {
 }
 
 export interface UserStatistics {
-  visitedStations: {
-    [stationId: string]: {
-      lastVisit: number;
-      visitCount: number;
-      totalSpent: number;
-    };
-  };
   totalRefills: number;
   totalSpent: number;
   averagePricePerRefill: number;
